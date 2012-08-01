@@ -7,8 +7,11 @@ The UPCG solver includes support for parallel solution of MODFLOW on
 (1) multi-core CPUs using OpenMP and (2) general purpose graphical
 processing units (GPGPUs) using the NVIDIA CUBLAS Library.
 
+
 Documentation:
+
 Hughes, J.D., and White, J.T., in review, Use of general purpose graphical processing units with MODFLOW-2005: submitted to Ground Water
+
 
 GENERAL USE:
 
@@ -18,6 +21,7 @@ Contact Joseph D. Hughes < jdhughes (at) usgs [dot] gov >
 
 
 DISCLAIMER and NOTICE
+
 Please refer to the USGS Software User Rights Notice (http://water.usgs.gov/software/help/notice/) for complete use, copyright, and distribution information. The USGS provides no warranty, expressed or implied, as to the correctness of the furnished software or the suitability for any purpose. The software has been tested, but as with any complex software, there could be undetected errors. Users who find errors are requested to report them to the USGS.
 
 References to non-USGS products, trade names, and (or) services are provided for information purposes only and do not constitute endorsement or warranty, express or implied, by the USGS, U.S. Department of Interior, or U.S. Government, as to their suitability, content, usefulness, functioning, completeness, or accuracy.
