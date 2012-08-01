@@ -8,7 +8,7 @@ The UPCG solver includes support for parallel solution of MODFLOW on
 processing units (GPGPUs) using the NVIDIA CUBLAS Library.
 
 
-Documentation:\\
+Documentation:\\n
 Hughes, J.D., and White, J.T., in review, Use of general purpose graphical processing units with MODFLOW-2005: submitted to Ground Water
 
 
