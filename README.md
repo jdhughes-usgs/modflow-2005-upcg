@@ -5,14 +5,14 @@ MODFLOW-2005 version 1.8 with the UPCG solver
 
 The UPCG solver includes support for parallel solution of MODFLOW on 
 (1) multi-core CPUs using OpenMP and (2) general purpose graphical
-processung units (GPGPUs) using the NVIDIA CUBLAS Library.
+processing units (GPGPUs) using the NVIDIA CUBLAS Library.
 
 Documentation:
 
 
 GENERAL USE:
 
-Add...
+Development and compilation of CUDA and CUBLAS functions requires installation of the CUDA toolkit which includes the necessary CUDA drivers. NVIDIA also provides GPGPU code samples in the CUDA software development kit (SDK). Current versions of each of these are available free of charge from NVIDIA at http://www.nvidia.com/content/cuda/cuda-downloads.html. A 64-bit version of the MODFLOW-2005 executable with the UPCG solver for the Windows 7 operating system and the Tesla C2050 GPGPU is available in the bin subdirectory and only requires installation of the CUDA drivers, which are also available as a stand-alone installation from NVIDIA, and a GPGPU with NVIDIA Compute Capability 2.0 or greater. This executable was linked against version 4.1.28 of the 64-bit CUDA toolkit.
 
 Contact Joseph D. Hughes < jdhughes (at) usgs [dot] gov >
 
