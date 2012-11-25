@@ -1,0 +1,68 @@
+      SUBROUTINE SUPCGPOLYA(NOPT,NTRD,NTRDV,NNZC,NIAC,
+     2                      AC,IAC,JAC,GLSPOLY,R,D)
+        USE UPCGMODULE, ONLY: TGLSPOLY
+        IMPLICIT NONE
+C     + + + DUMMY ARGUMENTS + + +
+        INTEGER, INTENT(IN) :: NOPT
+        INTEGER, INTENT(IN) :: NTRD
+        INTEGER, INTENT(IN) :: NTRDV
+        INTEGER, INTENT(IN) :: NNZC
+        INTEGER, INTENT(IN) :: NIAC
+        DOUBLEPRECISION, DIMENSION(NNZC),  INTENT(IN)     :: AC
+        INTEGER, DIMENSION(NIAC+1), INTENT(IN) :: IAC
+        INTEGER, DIMENSION(NNZC), INTENT(IN)   :: JAC
+        TYPE (TGLSPOLY), INTENT(INOUT) :: GLSPOLY
+        DOUBLEPRECISION, DIMENSION(NIAC),  INTENT(IN)     :: R
+        DOUBLEPRECISION, DIMENSION(NIAC),  INTENT(INOUT)  :: D
+C     + + + LOCAL DEFINITIONS + + +
+        INTEGER :: i, k
+        DOUBLEPRECISION :: bet
+        DOUBLEPRECISION, PARAMETER :: dzero = 0.0D0
+        DOUBLEPRECISION, PARAMETER :: done  = 1.0D0
+C     + + + FUNCTIONS + + +
+C     + + + CODE + + +
+C         INITIALIZE bet
+        bet = dzero
+!C         INITIALIZE D AND GLSPOLY%D_V0
+!        CALL SUPCGSETX(NOPT,NTRDV,NIAC,D,dzero)
+C         D = M^{-1}*R
+C         ASSUME D0 = 0
+C         D0 = R - A*D0 = R
+C         V1 = D0/BETA(1) = R/BETA(1)
+!        CALL DCOPY( NIAC, R, 1, GLSPOLY%D_V1, 1)
+!        CALL DSCAL( NIAC, done/GLSPOLY%BETA(1), GLSPOLY%D_V1, 1)
+        CALL SUPCGDCOPY(NOPT,NTRDV,NIAC,R,GLSPOLY%D_V1 )
+        CALL SUPCGDSCAL(NOPT,NTRDV,NIAC,
+     2                  done/GLSPOLY%BETA(1),GLSPOLY%D_V1)
+C         D = D0 + GAMMA(1)*V1 = GAMMA(1)*V1
+        CALL SUPCGSETX(NOPT,NTRDV,NIAC,D,dzero)
+        CALL SUPCGAXPY(NOPT,NTRDV,NIAC,GLSPOLY%GAMMA(1),GLSPOLY%D_V1,D)
+C            
+        DO k = 1, GLSPOLY%NDEGREE
+C           V = A * V1
+          CALL SUPCGMV(NOPT,NTRD,NNZC,NIAC,AC,
+     2      GLSPOLY%D_V1,GLSPOLY%D_V,IAC,JAC)
+C           V = V - ALPHA(k)*V1 - bet*V0
+          CALL SUPCGAXPY(NOPT,NTRDV,NIAC,-GLSPOLY%ALPHA(k),
+     2      GLSPOLY%D_V1,GLSPOLY%D_V)
+          IF ( k.GT.1 ) THEN
+            CALL SUPCGAXPY(NOPT,NTRDV,NIAC,
+     2                     -bet,GLSPOLY%D_V0,GLSPOLY%D_V)
+          END IF
+C           V0 = V1
+!          CALL DCOPY( NIAC, GLSPOLY%D_V1, 1, GLSPOLY%D_V0, 1)
+          CALL SUPCGDCOPY(NOPT,NTRDV,NIAC,GLSPOLY%D_V1,GLSPOLY%D_V0)
+C           REINITIALIZE V1
+          CALL SUPCGSETX(NOPT,NTRDV,NIAC,GLSPOLY%D_V1,dzero)
+C           V1 = V/BETA(k+1)
+          CALL SUPCGAXPY(NOPT,NTRDV,NIAC,done/GLSPOLY%BETA(k+1),
+     2      GLSPOLY%D_V,GLSPOLY%D_V1)
+C           D = D + GAMMA(k+1)*V1
+          CALL SUPCGAXPY(NOPT,NTRDV,NIAC,
+     2      GLSPOLY%GAMMA(k+1),GLSPOLY%D_V1,D)
+C           RESET bet TO NEXT BETA VALUE              
+          bet = GLSPOLY%BETA(k+1)
+        END DO
+C---------RETURN
+        RETURN
+      END SUBROUTINE SUPCGPOLYA
