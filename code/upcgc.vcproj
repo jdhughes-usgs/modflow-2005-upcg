@@ -21,6 +21,7 @@
 			IntermediateDirectory="$(PlatformName)\$(ConfigurationName)"
 			ConfigurationType="4"
 			CharacterSet="2"
+			BuildLogFile="$(IntDir)\BuildLog_upcgc.htm"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -87,6 +88,7 @@
 			ConfigurationType="4"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
+			BuildLogFile="$(IntDir)\BuildLog_upcgc.htm"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
