@@ -3,3 +3,6 @@
 *.user
 *.obj
 *.mod
+*.manifest
+*.pyc
+/TestProblem/00500
