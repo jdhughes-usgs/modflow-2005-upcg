@@ -1,0 +1,93 @@
+\documentclass[12pt]{article} % use larger type; default would be 10pt
+
+\usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
+
+%%% PAGE DIMENSIONS
+\usepackage{geometry} % to change the page dimensions
+\geometry{letterpaper} % or letterpaper (US) or a5paper or....
+\geometry{margin=1in} % for example, change the margins to 2 inches all round
+
+%%% PACKAGES
+\usepackage{paralist} % very flexible & customisable lists (eg. enumerate/itemize, etc.)
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+% These packages are all incorporated in the memoir class to one degree or another...
+
+%%% HEADERS & FOOTERS
+\usepackage{fancyhdr} % This should be set AFTER setting up the page geometry
+\pagestyle{fancy} % options: empty , plain , fancy
+\renewcommand{\headrulewidth}{0pt} % customise the layout...
+\lhead{}\chead{}\rhead{}
+\lfoot{UPCG Input Instructions}\cfoot{\thepage}\rfoot{\today}
+
+%%% SECTION TITLE APPEARANCE
+\usepackage{sectsty}
+\allsectionsfont{\sffamily\mdseries\upshape} % (See the fntguide.pdf for font help)
+
+\title{Brief Article}
+\author{The Author}
+
+\begin{document}
+
+\section*{Data Input Instructions for the Unstructured Preconditioned Conjugate Gradient (UPCG) Solver Package}
+
+\subsection*{MODFLOW-2005 Name File}
+The UPCG solver package is activated by including a record in the MODFLOW-2005 Name file using the file type (Ftype) ``\texttt{UPCG}'' to indicate that relevant calculations are to be made by the model and to specify the related input file.
+
+\subsection*{UPCG Solver Package Input Instructions}
+The UPCG solver input file contains solver parameters, options, and variables. Optional variables are indicated in [square brackets]. The UPCG solver package formulation is described in Hughes and White (2012).
+\\
+
+\noindent FOR EACH SIMULATION
+\begin{verbatim}
+1.  Data:   MXITER ITER1 NPC NOPT [NDEGREE] [NLANSTEP] [NTRD] [NTRDV]
+     Module: URWORD
+2.  Data:   HCLOSE RCLOSE
+     Module: URWORD
+\end{verbatim}
+
+
+\noindent Explanation of variables read by the UPCG solver package
+\begin{description}
+
+\item \texttt{MXITER}---an integer value that defines the maximum number of outer iterations—that is, calls to the UPCG solution routine.
+\item \texttt{ITER1}---an integer value that defines the maximum number of inner iterations—that is, iterations within the UPCG solution routine.
+\item \texttt{NPC}---an integer value used as a flag to select the matrix conditioning method for the UPCG solver. If \texttt{NPC} is less than 0, symmetric diagonal scaling is applied to the matrix. Symmetric diagonal scaling is always applied when the generalized least-squares, m-degree polynomial (\texttt{GLSPOLY}) preconditioner is used. The the absolute value of \texttt{NPC} is used to select the matrix conditioning method if \texttt{NPC} is less than 0.
+\begin{description}
+       \item 0 --No preconditioner.
+       \item 1 -- Jacobi preconditioner.
+       \item 2 -- zero-fill, incomplete lower-upper factorization (ILU0) preconditioner.
+       \item 3 -- zero-fill, modified incomplete lower-upper factorization (MILU0) preconditioner.
+       \item 4 -- generalized least-squares, m-degree polynomial (GLSPOLY) preconditioner.
+\end{description}
+\item \texttt{NOPT}---an integer value used as a flag to select the UPCG solver hardware option.
+\begin{description}
+       \item 1 -- Serial CPU solution.
+       \item 2 -- Parallel CPU solution using OpenMP.
+       \item 3 -- Parallel GPU solution. A combined serial CPU and parallel GPU solution is used if \texttt{|NPC|} is equal to 2 or 3.
+\end{description}
+\item \texttt{NDEGREE}---an integer value that defines the degree of the polynomial used to condition the coefficient matrix. \texttt{NDEGREE} is only specified if \texttt{|NPC|} is equal to 4 and must be greater than 0.
+\item \texttt{NLANSTEP}---an integer value that defines the number of Lanczos steps used to determine the minimum and maximum eigenvalues of the coefficient matrix. 10 to 20 Lanczos steps are typically sufficient to approximate the minimum and maximum eigenvalues for a coefficient matrix. Specification of \texttt{NLANSTEP} value equal to -2 disables calculation of the minimum and maximum eigenvalues and sets the minimum and maximum eigenvalues to be 0.0 and 2.0, respectively; use of minimum and maximum eigenvalues of 0.0 and 2.0, respectively, is generally acceptable values for coefficient matrices scaled using symmetric diagonal scaling (Scandrett 1989). \texttt{NLANSTEP} is only specified if \texttt{|NPC|} is equal to 4.
+\item \texttt{NTRD}---an integer value used as a flag to determine if the optimal number of OpenMP threads for matrix-vector products and vector operations (for example, vector-vector products) should be determined automatically or will be specified by the user. \texttt{NTRD} is only specified if \texttt{NOPT} is equal to 2.
+\begin{description}
+\item $<$0 -- the minimum of \texttt{|NTRD|} and 1 less than the maximum number of OpenMP threads available on the CPU (determined using \texttt{OMP\_GET\_MAX\_THREADS}) will be used for matrix-vector products.
+\item $=$0 -- the UPCG solver will use 1 less than the maximum number of OpenMP threads available on the CPU for matrix-vector products and 1 OpenMP thread for vector operations. 
+\item $>$0 -- the UPCG solver will calculate 100 matrix-vector products, 100 vector-vector products, and 100 vector copy operations to determine the optimal number of OpenMP threads to use for matrix-vector products and vector operations.
+\end{description}
+\item \texttt{NTRDV}----an integer value used to define the number of OpenMP threads to use for vector operations (for example, vector-vector products). \texttt{NTRDV} must be greater than 0. \texttt{NTRDV} is only specified if \texttt{NOPT} is equal to 2 and \texttt{NTRD} is less than 0.
+
+
+\item \texttt{HCLOSE}---a real value that defines the head change criterion for convergence, in units of length. When the maximum absolute value of head change from all active model cells during an iteration is less than or equal to \texttt{HCLOSE}, and the criterion for \texttt{RCLOSE} is also satisfied (see below), iteration stops. \texttt{HCLOSE} must be greater than 0.0.
+\item \texttt{RCLOSE}---a real value that defines the residual criterion for convergence, in units of cubic length per time. The units for length and time are the same as established for all model data.  (See \texttt{LENUNI} and \texttt{ITMUNI} input variables in the Discretization File.)  When the maximum absolute value of the residual at all active model cells during an iteration is less than or equal to \texttt{RCLOSE}, and the criterion for \texttt{HCLOSE} is also satisfied (see above), iteration stops. \texttt{RCLOSE} must be greater than 0.0.
+
+\end{description}
+
+\section*{Reference}
+\begin{description}
+
+\item Hughes J.T, and White, J.T., 2012. Use of general purpose graphics processing units with MODFLOW: Ground Water, doi: 10.1111/gwat12004. 
+
+\item Scandrett, C. 1989. Comparison of several iterative techniques in the solution of symmetric banded equations on a two-pipe Cyber 250, Applied Mathematics and Computation 34: 95-112.
+
+\end{description}
+
+\end{document}

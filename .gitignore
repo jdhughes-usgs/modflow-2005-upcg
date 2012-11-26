@@ -1,8 +1,15 @@
 /code/x64
 /code/lib
+/TestProblem/00200
+/TestProblem/00500
+/TestProblem/01000
+/TestProblem/02000
+/TestProblem/04000
 *.user
 *.obj
 *.mod
 *.manifest
 *.pyc
-/TestProblem/00500
+*.aux
+*.log
+*.gz
