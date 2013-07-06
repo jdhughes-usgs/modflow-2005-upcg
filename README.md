@@ -22,6 +22,19 @@ Development and compilation of CUDA and CUBLAS functions requires installation o
 Contact Joseph D. Hughes < jdhughes (at) usgs [dot] gov >
 
 
+Version History:
+
+o Version 1.0 12/12/2012:
+
+This version is the initial release. 
+
+o Version 1.1 07/06/2013:
+
+Updated MODFLOW source code to version 1.10 and modified the Visual Studio solution and upcgc C++ project to link against version 5.0 of the 64-bit CUDA toolkit. 
+
+Modified matrix assembly in UPCG7AP subroutine (upcg7.f) to work with more general MODFLOW problems with wetting and drying, interior inactive cells, and constant head cells.
+
+
 DISCLAIMER and NOTICE
 
 Please refer to the USGS Software User Rights Notice (http://water.usgs.gov/software/help/notice/) for complete use, copyright, and distribution information. Although this software has been used by the U.S. Geological Survey (USGS), no warranty, expressed or implied, is made by the USGS or the U.S. Government as to the accuracy and functioning of the software program and related program material nor shall the fact of distribution constitute any such warranty, and no responsibility is assumed by the USGS in connection therewith.  Although the software has been tested, there could be undetected errors. Users are encouraged to report any errors to these authors.  Any use of trade, firm, or product names is for descriptive purposes only and does not imply endorsement by the U.S. Government.

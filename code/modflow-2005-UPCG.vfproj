@@ -15,7 +15,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64" OutputDirectory="..\bin">
 				<Tool Name="VFFortranCompilerTool" AdditionalOptions="/traceback" SuppressStartupBanner="true" DebugInformationFormat="debugLineInfoOnly" Optimization="optimizeFull" OpenMP="OpenMPParallelCode" Traceback="true"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_x64.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" IgnoreDefaultLibraryNames="MSVCRT.lib" SubSystem="subSystemConsole" AdditionalDependencies="lib\gmg_x64.lib lib\upcgc_x64.lib lib\cuda_kernels_x64.lib"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_x64.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" IgnoreDefaultLibraryNames="MSVCRT.lib" SubSystem="subSystemConsole" AdditionalDependencies="lib\gmg_x64.lib lib\upcgc_x64.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -73,6 +73,8 @@
 		<File RelativePath=".\src\obs2str7.f"/>
 		<File RelativePath=".\src\parutl7.f"/>
 		<File RelativePath=".\src\pcg7.f"/>
+		<File RelativePath=".\src\pcgn2.f90"/>
+		<File RelativePath=".\src\pcgn_solve2.f90"/>
 		<File RelativePath=".\src\sip7.f"/>
 		<File RelativePath=".\src\UPCG\upcg7.f"/>
 		<File RelativePath=".\src\UPCG\upcg7lanczos.f"/>

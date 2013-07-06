@@ -10,7 +10,7 @@
       TYPE(GWFMNWITYPE), SAVE:: GWFMNWIDAT(10)
       END MODULE GWFMNW2IMODULE
 c   GZH  20080208 
-C
+C   LFK  March 2011  Revision in GWF2MNW2I7OT to fix WEL1 output file for inactive wells.
 C
 C GWF2MNW2I7AR READ INIT DATA AND ALLOCATE SPACE FOR MNW WELLS DESIGNATED FOR OBSERVATION
 C
@@ -259,12 +259,16 @@ c   Loop over nodes in well
                 ir=MNWNOD(2,INODE)              
                 ic=MNWNOD(3,INODE)              
                 q=MNWNOD(4,INODE)
+c LFK  check if well is inactive; if yes, set q at all nodes = 0 to assure consistent WEL1 file.
+                if(MNW2(1,iw).eq.0) q=0.0
 c   Write L,R,C,q (& OPTIONAL AUX values)
                IF (NAUX.LE.0) THEN
-                write(Wel1flag,'(i9,2i10,1x,g15.6)') il,ir,ic,q       
+c  LFK 3/26/12                write(Wel1flag,'(i9,2i10,1x,g15.6)') il,ir,ic,q       
+                write(Wel1flag,'(i10,2i10,1x,g14.6)') il,ir,ic,q       
                ELSE
         write(Wel1flag,1760)il,ir,ic,q,(MNW2(30+IAUX,IW),IAUX=1,NAUX)  
- 1760 FORMAT (i9,2i10,1x,g15.6,2X,5(:(f4.0,4x)))
+c LFK 1760 FORMAT (i9,2i10,1x,g15.6,2X,5(:(f4.0,4x)))
+ 1760 FORMAT (i10,2i10,1x,g14.6,2X,5(:(f4.0,4x)))
                END IF
               end do
           end do
@@ -274,7 +278,7 @@ c  Print QSUM file
       if(QSUMflag.gt.0) then
 c   Write header
         if(kkstp.eq.1.and.kkper.eq.1) then
-           write(QSUMflag,'(200A)') 'WELLID                    Totim    
+           write(QSUMflag,'(200A)') 'WELLID                   Totim    
      &        Qin           Qout           Qnet          hwell'
         end if
 c   Loop over all wells
@@ -312,7 +316,7 @@ c   Write header
         if(kkstp.eq.1.and.kkper.eq.1) then
            write(BYNDflag,'(101A)') 'WELLID                NODE   Lay 
      &  Row   Col        Totim        Q-node         hwell         hcell
-     &   Seepage elev.'
+     &   Seepage_elev.'
         end if
 c   Loop over all wells
         do iw=1,MNWMAX
@@ -387,11 +391,19 @@ C  Create format for header--single node
           if(NNODES.eq.1) then
             if(kkstp.eq.1.and.kkper.eq.1) then
           Write (INT(MNWILST(3,iwobs)),'(A)') 'WELLID                
-     &       TOTIM           Qin
+     &      TOTIM           Qin
      &          Qout          Qnet         QCumu         hwell'
             end if
-            write(INT(MNWILST(3,iwobs)),'(A20,1x,1P6e14.6)')
+C-LFK       write(INT(MNWILST(3,iwobs)),'(A20,1x,1P6e14.6)')
+            if (MNW2(1,iw).EQ.1)then
+               write(INT(MNWILST(3,iwobs)),
+     &             '(A20,1x,1P6e14.6)')
      &             WELLID(iw),totim,qin,qout,qnet,MNWILST(2,IWOBS),hwell
+            else
+               write(INT(MNWILST(3,iwobs)),
+     &             '(A20,1x,1Pe14.6,"   (Well is inactive)")')
+     &             WELLID(iw),totim
+            end if
           else
 c  all multi-node well output below
           if(QNDflag.eq.0) then
@@ -401,7 +413,7 @@ c  QNDflag=0, QBHflag=0, QCONCflag=0
 c write header
                 if(kkstp.eq.1.and.kkper.eq.1) then
           Write (INT(MNWILST(3,iwobs)),'(120A)') 'WELLID                
-     &       TOTIM           Qin
+     &      TOTIM           Qin
      &          Qout          Qnet      Cum.Vol.         hwell
      &   '
                 end if

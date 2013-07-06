@@ -18,11 +18,13 @@ C     Last change:  MLM & LFK  10 Oct 2003;  LFK 21 Jan 2004
 C     Previous change:  ERB  13 Sep 2002    9:22 am
 C
       MODULE GWFLAKMODULE
-C------VERSION 7;   CREATED FOR MODFLOW-2005
+C------OLD USGS VERSION 7.1; JUNE 2006 GWFLAKMODULE; 
+C------UPDATED FOR MF-2005, 1.9 RELEASE, FEBRUARY 6, 2012  
         CHARACTER(LEN=64),PARAMETER ::Version_lak =
-     +'$Id: gwf2lak7.f 1109 2009-09-08 17:12:33Z rsregan $'
+     +'$Id: gwf2lak7.f 1457 2011-10-01 12:00:00Z rniswon $'
         INTEGER,SAVE,POINTER   ::NLAKES,NLAKESAR,ILKCB,NSSITR,LAKUNIT
-        INTEGER,SAVE,POINTER   ::MXLKND,LKNODE,ICMX,NCLS,LWRT,NDV,NTRB
+        INTEGER,SAVE,POINTER   ::MXLKND,LKNODE,ICMX,NCLS,LWRT,NDV,NTRB,
+     +                           IRDTAB
         REAL,   SAVE,POINTER   ::THETA,SSCNCR,SURFDEPTH
 Cdep    Added SURFDEPTH  3/3/2009
 Crgn    Added budget variables for GSFLOW CSV file
@@ -30,14 +32,16 @@ Crgn    Added budget variables for GSFLOW CSV file
         REAL,   SAVE,POINTER   ::TOTSTOR_LAK,TOTEVAP_LAK,TOTPPT_LAK
         REAL,   SAVE,POINTER   ::TOTRUNF_LAK,TOTWTHDRW_LAK,TOTSURFIN_LAK
         REAL,   SAVE,POINTER   ::TOTSURFOT_LAK
-        INTEGER,SAVE, DIMENSION(:),  POINTER ::ICS, NCNCVR, LIMERR
+        INTEGER,SAVE, DIMENSION(:),  POINTER ::ICS, NCNCVR, LIMERR, 
+     +                                         LAKTAB
         INTEGER,SAVE, DIMENSION(:,:),POINTER ::ILAKE,ITRB,IDIV,ISUB,IRK
         INTEGER,SAVE, DIMENSION(:,:,:),POINTER ::LKARR1
         REAL,   SAVE, DIMENSION(:),  POINTER ::STAGES
         DOUBLE PRECISION,SAVE,DIMENSION(:), POINTER ::STGNEW,STGOLD,
-     +                                          STGOLD2,STGITER,VOLOLDD
+     +                                        STGITER,VOLOLDD,STGOLD2
         REAL,   SAVE, DIMENSION(:),  POINTER ::VOL,FLOB,DSRFOT
-        REAL,   SAVE, DIMENSION(:),  POINTER ::PRCPLK,EVAPLK,BEDLAK
+        DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::PRCPLK,EVAPLK
+        REAL,   SAVE, DIMENSION(:),  POINTER ::BEDLAK
         REAL,   SAVE, DIMENSION(:),  POINTER ::WTHDRW,RNF,CUMRNF
         REAL,   SAVE, DIMENSION(:),  POINTER ::CUMPPT,CUMEVP,CUMGWI
         REAL,   SAVE, DIMENSION(:),  POINTER ::CUMUZF
@@ -54,8 +58,10 @@ crgn        REAL,   SAVE, DIMENSION(:),  POINTER ::EVAP,PRECIP,SEEP,SEEP3
         DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::FLWITER
         DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::FLWITER3
         DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::SEEP,SEEP3
+        DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::SEEPUZ
         DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::WITHDRW
-        REAL,   SAVE, DIMENSION(:),  POINTER ::SURFA,SURFIN,SURFOT
+        DOUBLE PRECISION,   SAVE, DIMENSION(:),  POINTER ::SURFA
+        REAL,   SAVE, DIMENSION(:),  POINTER ::SURFOT,SURFIN
         REAL,   SAVE, DIMENSION(:),  POINTER ::SUMCNN,SUMCHN
         REAL,   SAVE, DIMENSION(:,:),POINTER ::CLAKE,CRNF,SILLVT
         REAL,   SAVE, DIMENSION(:,:),POINTER ::CAUG,CPPT,CLAKINIT
@@ -66,8 +72,9 @@ Cdep  Added arrays for tracking lake budgets for dry lakes
 Cdep    Allocate arrays to add runoff from UZF Package
         REAL,   SAVE, DIMENSION(:),  POINTER ::OVRLNDRNF,CUMLNDRNF
 Cdep    Allocate arrays for lake depth, area,and volume relations
-        REAL,   SAVE, DIMENSION(:,:),  POINTER ::DEPTHTABLE,AREATABLE
-        REAL,   SAVE, DIMENSION(:,:),  POINTER ::VOLUMETABLE
+        DOUBLE PRECISION,   SAVE, DIMENSION(:,:),  POINTER ::DEPTHTABLE
+        DOUBLE PRECISION,   SAVE, DIMENSION(:,:),  POINTER ::AREATABLE
+        DOUBLE PRECISION,   SAVE, DIMENSION(:,:),  POINTER ::VOLUMETABLE
 Cdep    Allocate space for three dummy arrays used in GAGE Package
 C         when Solute Transport is active
         REAL,   SAVE, DIMENSION(:,:),POINTER ::XLAKES,XLAKINIT,XLKOLD
@@ -79,7 +86,8 @@ Crsr    Allocate arrays in BD subroutine
         REAL,   SAVE, DIMENSION(:),  POINTER ::DELH,TDELH,SVT,STGADJ
       TYPE GWFLAKTYPE
         INTEGER,      POINTER   ::NLAKES,NLAKESAR,ILKCB,NSSITR,LAKUNIT
-        INTEGER,      POINTER   ::MXLKND,LKNODE,ICMX,NCLS,LWRT,NDV,NTRB
+        INTEGER,      POINTER   ::MXLKND,LKNODE,ICMX,NCLS,LWRT,NDV,NTRB,
+     +                            IRDTAB
 Cdep    Added SURFDEPTH 3/3/2009
         REAL,         POINTER   ::THETA,SSCNCR,SURFDEPTH
 Crgn    Added budget variables for GSFLOW CSV file
@@ -87,15 +95,17 @@ Crgn    Added budget variables for GSFLOW CSV file
         REAL,         POINTER   ::TOTSTOR_LAK,TOTEVAP_LAK,TOTPPT_LAK
         REAL,         POINTER   ::TOTRUNF_LAK,TOTWTHDRW_LAK
         REAL,         POINTER   ::TOTSURFOT_LAK,TOTSURFIN_LAK
-        INTEGER,      DIMENSION(:),  POINTER ::ICS, NCNCVR, LIMERR
+        INTEGER,      DIMENSION(:),  POINTER ::ICS, NCNCVR, LIMERR, 
+     +                                         LAKTAB
         INTEGER,      DIMENSION(:,:),POINTER ::ILAKE,ITRB,IDIV,ISUB,IRK
         INTEGER,      DIMENSION(:,:,:),POINTER ::LKARR1
         REAL,         DIMENSION(:),  POINTER ::STAGES
         DOUBLE PRECISION,DIMENSION(:),POINTER ::STGNEW,STGOLD,STGITER,
-     +                                          STGOLD2 
+     +                                        STGOLD2
         DOUBLE PRECISION,DIMENSION(:),POINTER :: VOLOLDD
         REAL,         DIMENSION(:),  POINTER ::VOL,FLOB, DSRFOT
-        REAL,         DIMENSION(:),  POINTER ::PRCPLK,EVAPLK,BEDLAK
+        DOUBLE PRECISION,DIMENSION(:),  POINTER ::PRCPLK,EVAPLK
+        REAL,         DIMENSION(:),  POINTER ::BEDLAK
         REAL,         DIMENSION(:),  POINTER ::WTHDRW,RNF,CUMRNF
         REAL,         DIMENSION(:),  POINTER ::CUMPPT,CUMEVP,CUMGWI
         REAL,         DIMENSION(:),  POINTER ::CUMUZF
@@ -112,8 +122,10 @@ Crgn        REAL,         DIMENSION(:),  POINTER ::EVAP,PRECIP,SEEP,SEEP3
         DOUBLE PRECISION,DIMENSION(:),  POINTER :: FLWITER
         DOUBLE PRECISION,DIMENSION(:),  POINTER :: FLWITER3
         DOUBLE PRECISION,DIMENSION(:),  POINTER :: SEEP,SEEP3
+        DOUBLE PRECISION,DIMENSION(:),  POINTER :: SEEPUZ
         DOUBLE PRECISION,DIMENSION(:),  POINTER :: WITHDRW  
-        REAL,         DIMENSION(:),  POINTER ::SURFA,SURFIN,SURFOT
+        DOUBLE PRECISION,DIMENSION(:),  POINTER :: SURFA
+        REAL,         DIMENSION(:),  POINTER ::SURFIN,SURFOT
         REAL,         DIMENSION(:),  POINTER ::SUMCNN,SUMCHN
         REAL,         DIMENSION(:,:),POINTER ::CLAKE,CRNF,SILLVT
         REAL,         DIMENSION(:,:),POINTER ::CAUG,CPPT,CLAKINIT
@@ -124,8 +136,9 @@ Cdep  Added arrays for tracking lake budgets for dry lakes
 Cdep    Allocate arrays to add runoff from UZF Package
         REAL,         DIMENSION(:),  POINTER ::OVRLNDRNF,CUMLNDRNF
 Cdep    Allocate arrays for lake depth, area, and volume relations
-        REAL,         DIMENSION(:,:),POINTER ::DEPTHTABLE,AREATABLE
-        REAL,         DIMENSION(:,:),POINTER ::VOLUMETABLE
+        DOUBLE PRECISION,         DIMENSION(:,:),POINTER ::DEPTHTABLE
+        DOUBLE PRECISION,         DIMENSION(:,:),POINTER ::AREATABLE
+        DOUBLE PRECISION,         DIMENSION(:,:),POINTER ::VOLUMETABLE
 Cdep    Allocate space for three dummy arrays used in GAGE Package
 C         when Solute Transport is active
         REAL,         DIMENSION(:,:),POINTER ::XLAKES,XLAKINIT,XLKOLD
@@ -142,7 +155,7 @@ C
       SUBROUTINE GWF2LAK7AR(IN,IUNITSFR,IUNITGWT,IUNITUZF,NSOL,IGRID)
 C
 C------USGS VERSION 7.1; JUNE 2006 GWF2LAK7AR; 
-C        REVISED APRIL-AUGUST 2009  
+C------UPDATED FOR MF-2005, FEBRUARY 6, 2012  
 C     ******************************************************************
 C     INITIALIZE POINTER VARIABLES USED BY SFR1 TO SUPPORT LAKE3 AND
 C     GAGE PACKAGES AND THE GWT PROCESS
@@ -160,6 +173,7 @@ C
 C      ------------------------------------------------------------------
 C      SPECIFICATIONS:
        CHARACTER (LEN=40):: CARD 
+       CHARACTER*200 line
 C      ------------------------------------------------------------------
 Crsr  Allocate lake variables used by SFR even if lakes not active so that
 C       argument lists are defined     
@@ -172,6 +186,7 @@ C       argument lists are defined
 Cdep added SURFDEPTH 3/3/2009
         ALLOCATE (ILKCB, NSSITR, SSCNCR, SURFDEPTH)
         ALLOCATE (MXLKND, LKNODE, ICMX, NCLS, LWRT, NDV, NTRB)
+        ALLOCATE (IRDTAB)
 C
 C1------IDENTIFY PACKAGE AND INITIALIZE LKNODE.
       WRITE(IOUT,1) IN
@@ -181,6 +196,24 @@ Cdep  initialize number of iterations and closure criteria to zero.
       NSSITR = 0
       SSCNCR = 0.0
       SURFDEPTH = 0.0
+!
+      lloc = 1
+      IRDTAB = 0
+      CALL URDCOM(In, IOUT, line)
+! Check for alternate option to specifiy stage/vol/area tables.
+      CALL UPARLSTAL(IN,IOUT,LINE,NPP,MXVL)
+      lloc = 1
+      CALL URWORD(LINE,LLOC,ISTART,ISTOP,1,I,R,IOUT,IN)
+      IF(LINE(ISTART:ISTOP).EQ.'TABLEINPUT') THEN
+         IRDTAB = 1
+         WRITE(IOUT,32)
+   32  FORMAT(1X,I10,' Stage, volume and area relationship specified ',
+     +                'based on an external tabular input file')
+      ELSE
+        BACKSPACE IN
+        WRITE(IOUT,'(A)') ' Model grid will be used to develop ',
+     +                     ' volume and area relationship. '
+      END IF
 C
 C2------READ NLAKES, ILKCB.
 C
@@ -211,7 +244,7 @@ Cdep     for transient simulations when using original version of
 Cdep     LAKE Package.
         IF(THETA.GE.0.0.AND.NSSITR.EQ.0) THEN
           NSSITR=100
-          SSCNCR=1.0E-04
+          SSCNCR=1.0E-05
         ELSE IF(THETA.LT.0.0)THEN 
           THETA=ABS(THETA) 
           IF(IFREFM.EQ.0) THEN 
@@ -242,7 +275,8 @@ C
 C  SET NLAKES ARRAY VARIABLE TO NLAKES IF NLAKES GREATER THAN 0.
       IF (NLAKES.GT.0) NLAKESAR = NLAKES
       ALLOCATE (VOL(NLAKESAR), STGOLD(NLAKESAR), STGNEW(NLAKESAR))
-      ALLOCATE (VOLOLDD(NLAKESAR), STGOLD2(NLAKESAR))
+      ALLOCATE(STGOLD2(NLAKESAR))
+      ALLOCATE (VOLOLDD(NLAKESAR))
 !     ALLOCATE (VOLOLDD(NLAKESAR), VOLOLD(NLAKES), VOLINIT(NLAKES))
       ALLOCATE (STGITER(NLAKESAR))
       STGNEW = 0.0D0
@@ -301,7 +335,7 @@ Cdep      IF(ITRSS.LE.0.AND.NSSITR.EQ.0) NSSITR = 50
 Cdep      IF(ITRSS.LE.0.AND.SSCNCR.EQ.0.0) SSCNCR = 0.01
 Cdep      IF(ITRSS.EQ.0) WRITE(IOUT,23) NSSITR, SSCNCR
 Cdep      IF(ITRSS.LT.0) WRITE(IOUT,24) NSSITR, SSCNCR
-1     FORMAT(/1X,'LAK7 -- LAKE PACKAGE, VERSION 7, 6/28/2006',
+1     FORMAT(/1X,'LAK7 -- LAKE PACKAGE, VERSION 7, 2/06/2012',
      1' INPUT READ FROM UNIT',I3)
 2       FORMAT(1X,' NUMBER OF LAKES=0, ',
      1              ' SO LAKE PACKAGE IS BEING TURNED OFF')
@@ -370,6 +404,7 @@ Cdep     1'CONVERGENCE CRITERION = ',1PE9.2)
         ALLOCATE (LKARR1(NCOL,NROW,NLAY), BDLKN1(NCOL,NROW,NLAY))
         ALLOCATE (EVAP(NLAKES), PRECIP(NLAKES), SEEP(NLAKES),
      +            SEEP3(NLAKES),EVAP3(NLAKES), PRECIP3(NLAKES))
+        ALLOCATE (SEEPUZ(NLAKES))
         ALLOCATE (FLWITER(NLAKES),FLWITER3(NLAKES))
         ALLOCATE (SURFA(NLAKES), SURFIN(NLAKES), SURFOT(NLAKES))
         ALLOCATE (SUMCNN(NLAKES), SUMCHN(NLAKES))
@@ -386,6 +421,12 @@ Cdep  Allocate arrays that track lake budgets for dry lakes
         PRECIP = 0.0D0
         EVAP3 = 0.0D0
         PRECIP3 = 0.0D0
+        IF ( IRDTAB.GT.0 ) THEN
+          ALLOCATE(LAKTAB(NLAKES))
+        ELSE
+          ALLOCATE(LAKTAB(1))
+        END IF
+        LAKTAB = 0
 !rsr    GWRATLIM= 0.0
 Cdep  Allocate space for three arrays used in GAGE Package 
 C       when Solute Transport is active
@@ -445,9 +486,9 @@ Cdep    ALLOCATE SPACE FOR DEPTHTABLE, AREATABLE, AND VOLUMETABLE
       OVRLNDRNF = 0.0
       CUMLNDRNF = 0.0
       CUMUZF = 0.0
-      DEPTHTABLE = 0.0
-      AREATABLE = 0.0
-      VOLUMETABLE = 0.0
+      DEPTHTABLE = 0.0D0
+      AREATABLE = 0.0D0
+      VOLUMETABLE = 0.0D0
 Cdep initialized lake budget error arrays  6/9/2009
       CUMVOL = 0.0
       DELVOL = 0.0
@@ -466,7 +507,7 @@ C
      +                      IUNITSFR,IUNITUZF,KKPER,NSOL,IOUTS,IGRID)
 C
 C------USGS VERSION 7.1;  JUNE 2006 GWF2LAK7RP
-C        REVISED APRIL-AUGUST 2009  DEP&RGN
+C        REVISED FEBRUARY 6, 2012
 C     ******************************************************************
 C       READ INPUT DATA FOR THE LAKE PACKAGE.
 C     ------------------------------------------------------------------
@@ -505,12 +546,25 @@ C1A1----READ INITIAL CONDITIONS FOR ALL LAKES (ONLY READ ONCE)
          IF (IUNITGWT.EQ.0) THEN
             DO 30 LM=1,NLAKES
                IF (IFREFM.EQ.0) THEN
-                  IF(ISS.NE.0) READ (IN,'(3F10.4)') STAGES(LM),SSMN(LM),
-     1              SSMX(LM)
-                  IF(ISS.EQ.0) READ (IN,'(3F10.4)') STAGES(LM)
+                 IF ( IRDTAB.GT.0 ) THEN
+                   IF(ISS.NE.0) READ (IN,'(3F10.4,I5)') STAGES(LM),
+     1                                SSMN(LM),SSMX(LM),LAKTAB(LM)
+                   IF(ISS.EQ.0) READ (IN,'(3F10.4,I5)') STAGES(LM),
+     2                                               LAKTAB(LM)
+                 ELSE
+                   IF(ISS.NE.0) READ (IN,'(3F10.4)') STAGES(LM),
+     1              SSMN(LM),SSMX(LM)
+                   IF(ISS.EQ.0) READ (IN,'(3F10.4)') STAGES(LM)
+                 END IF
                ELSE
-                  IF(ISS.NE.0) READ (IN,*) STAGES(LM),SSMN(LM),SSMX(LM)
-                  IF(ISS.EQ.0) READ (IN,*) STAGES(LM)
+                 IF ( IRDTAB.GT.0 ) THEN
+                   IF(ISS.NE.0) READ (IN,*)STAGES(LM),SSMN(LM),SSMX(LM),
+     1                                     LAKTAB(LM)
+                   IF(ISS.EQ.0) READ (IN,*) STAGES(LM),LAKTAB(LM)
+                 ELSE
+                   IF(ISS.NE.0) READ (IN,*) STAGES(LM),SSMN(LM),SSMX(LM)
+                   IF(ISS.EQ.0) READ (IN,*) STAGES(LM)
+                 END IF
                END IF
             IF(ISS.NE.0) WRITE (IOUT,22) LM,STAGES(LM),SSMN(LM),SSMX(LM)
             IF(ISS.EQ.0) WRITE (IOUT,22) LM,STAGES(LM)
@@ -520,15 +574,31 @@ C1A1----READ INITIAL CONDITIONS FOR ALL LAKES (ONLY READ ONCE)
 !            WRITE (LFRMAT,23) NSOL  !LFRMAT is not set
             DO 35 LM=1,NLAKES
                IF (IFREFM.EQ.0) THEN
-                 IF(ISS.NE.0) READ(IN,'(100F10.4)') STAGES(LM),SSMN(LM),
-     1              SSMX(LM),(CLAKE(LM,ISOL),ISOL=1,NSOL)
-                 IF(ISS.EQ.0) READ (IN,'(100F10.4)') STAGES(LM),
-     1                        (CLAKE(LM,ISOL),ISOL=1,NSOL)
+                 IF ( IRDTAB.GT.0 ) THEN
+                   IF(ISS.NE.0) READ(IN,'(100F10.4)') STAGES(LM),
+     1                SSMN(LM),SSMX(LM),(CLAKE(LM,ISOL),ISOL=1,NSOL),
+     2                LAKTAB(LM)
+                   IF(ISS.EQ.0) READ (IN,'(100F10.4)') STAGES(LM),
+     1                          (CLAKE(LM,ISOL),ISOL=1,NSOL),LAKTAB(LM)
+                 ELSE
+                   IF(ISS.NE.0) READ(IN,'(100F10.4)') STAGES(LM),
+     1                SSMN(LM),SSMX(LM),(CLAKE(LM,ISOL),ISOL=1,NSOL)
+                   IF(ISS.EQ.0) READ (IN,'(100F10.4)') STAGES(LM),
+     1                          (CLAKE(LM,ISOL),ISOL=1,NSOL)
+                 END IF
                ELSE
-                 IF(ISS.NE.0) READ (IN,*) STAGES(LM),SSMN(LM),SSMX(LM),
-     1                        (CLAKE(LM,ISOL),ISOL=1,NSOL)
-                 IF(ISS.EQ.0) READ (IN,*) STAGES(LM),
-     1                        (CLAKE(LM,ISOL),ISOL=1,NSOL)
+                 IF ( IRDTAB.GT.0 ) THEN
+                   IF(ISS.NE.0) READ (IN,*) STAGES(LM),SSMN(LM),
+     1                          SSMX(LM),(CLAKE(LM,ISOL),ISOL=1,NSOL),
+     2                          LAKTAB(LM)
+                   IF(ISS.EQ.0) READ (IN,*) STAGES(LM),
+     1                          (CLAKE(LM,ISOL),ISOL=1,NSOL),LAKTAB(LM)
+                 ELSE
+                   IF(ISS.NE.0) READ (IN,*) STAGES(LM),SSMN(LM),
+     1                          SSMX(LM),(CLAKE(LM,ISOL),ISOL=1,NSOL)
+                   IF(ISS.EQ.0) READ (IN,*) STAGES(LM),
+     1                          (CLAKE(LM,ISOL),ISOL=1,NSOL)
+                 END IF
                END IF
             IF(ISS.NE.0) WRITE (IOUT,22) LM,STAGES(LM),SSMN(LM),SSMX(LM)
             IF(ISS.EQ.0) WRITE (IOUT,22) LM,STAGES(LM)
@@ -676,13 +746,11 @@ Cdep      IF(LKARR1(I,J,K).NE.0) LID = LKARR1(I,J,K)
       END IF
       ILAKE(4,M) = LID
       ILAKE(5,M) = 6
-CJDH      BEDLAK(M) = BDLKN1(I,J,K-1)
-      BEDLAK(M) = 0.0  !JDH
-      IF(K.GT.1) BEDLAK(M) = BDLKN1(I,J,K-1)  !JDH
+      BEDLAK(M) = BDLKN1(I,J,K-1)
       IF(K.EQ.NLAY.AND.LKARR1(I,J,K).NE.0) BEDLAK(M) = 0.0
       BGAREA(LID) = BGAREA(LID) + DELC(J)*DELR(I)
       WRITE(IOUT,5) (ILAKE(I1,M),I1=1,5), BEDLAK(M)
-5     FORMAT(5I10,10X,G10.5)  !JDH CHANGED F10.5 TO G10.5
+5     FORMAT(5I10,10X,F10.5)
       IF(LKARR1(I,J,K).NE.0) GO TO 180
 C
 C   SEARCH FOR CELL(S) ADJACENT TO LAKE
@@ -810,12 +878,16 @@ C
 C-- COMPUTE AND PRINT STAGE/VOLUME TABLES WHEN MORE THAN ONE LAYER
 Cdep  revised print statement to include stage/area tables
 C
-CJDH      IF(NLAY.EQ.1) GO TO 1331
+      IF ( IRDTAB.EQ.0 ) THEN
+      IF(NLAY.EQ.1) GO TO 1331
       DO 1330 L1=1,NLAKES
       WRITE(IOUT,1306) L1
 Cdep  revised print statement to include area
  1306 FORMAT(//1X,'STAGE/VOLUME RELATION FOR LAKE',I3//6X,'STAGE',
      1        8X,'VOLUME',8X,'AREA'/)
+      DO  INC=1,151
+        AREATABLE(INC,L1) = 0.D0
+      END DO
       EVOL = 0.0
       GTSDPH = 40.0
       TOPMST = BOTTMS(L1)+GTSDPH
@@ -826,12 +898,12 @@ Cdep  revised print statement to include area
 Cdep Revised estimate of DTHK to be thickness of top most 
 C     layer 6/09/2009
       IF(BOTM(I,J,0).GT.TOPMST) TOPMST = BOTM(I,J,0) 
-      DTHK = BOTM(I,J,0) - BOTM(I,J,1)
-      IF (DTHK.LE.GTSDPH) THEN
-        TOPMST = BOTM(I,J,1)+DTHK
-      ELSE 
-        TOPMST = BOTM(I,J,1)+GTSDPH
-      END IF
+!      DTHK = BOTM(I,J,0) - BOTM(I,J,1)   RGN this was causing problems 7/8/11
+!      IF (DTHK.LE.GTSDPH) THEN
+!        TOPMST = BOTM(I,J,1)+DTHK
+!      ELSE 
+!        TOPMST = BOTM(I,J,1)+GTSDPH
+!      END IF
  1340 CONTINUE
       TBNC = (TOPMST-BOTTMS(L1))/150.0
 Cdep Revised looping for computing lake stage, volume, 
@@ -880,52 +952,7 @@ Cdep PRINT TABLE OF ELEVATION, VOLUME, AND AREA
      +                    AREATABLE(INC,L1) 
         TBELV = TBELV + TBNC 
       END DO
-!      DO  INC=1,151
-
-!        TBELV=DEPTHTABLE(INC,L1)
-!        IF(INC.GT.1.AND.ABS(BOTIJ-TBELV).LT.1.0E-03) THEN
-!           AREATABLE(INC,L1)=(AREATABLE(INC-1,L1)+AREATABLE(INC+1,L1))/2
-!           VOLUMETABLE(INC,L1)=(VOLUMETABLE(INC-1,L1)+
-!     +                         VOLUMETABLE(INC+1,L1))/2
-!        END IF    
-!      END DO
  1315 FORMAT(3(1X,1PE13.5))
-Cdep&rgn Commented out the following 34 lines and replaced with the
-Cdep&rgn previous 45 lines
-Cdep  DO 1325 K=1,150         ! Increased increment by 1.
-C      DO 1325 K=1,151
-C      EVOL=0.0
-Cdep     TBELV = TBELV + TBNC  ! moved end of loop
-C     DO 1320 I=1,NCOL
-C      DO 1320 J=1,NROW
-C      IF(LKARR1(I,J,1).NE.L1) GO TO 1320
-C      DO 1318 K2=1,NLAY
-C      IF(LKARR1(I,J,K2).EQ.0) GO TO 1319
-C 1318 CONTINUE
-C      BOTIJ = BOTM(I,J,LBOTM(NLAY))
-C      GO TO 1313
-C 1319 BOTIJ = BOTM(I,J,LBOTM(K2-1))
-Cdep Add values to area and depth tables
-C      IF(K.EQ.1) THEN
-C        IF(TBELV+TBNC.GT.BOTIJ) THEN
-C          AREATABLE(K,L1)=AREATABLE(K,L1)+DELC(J)*DELR(I)
-C          DEPTHTABLE(K,L1)=TBELV
-C        END IF
-C      ELSE 
-C        IF(TBELV.GT.BOTIJ) THEN
-C          AREATABLE(K,L1)=AREATABLE(K,L1)+DELC(J)*DELR(I)
-C          DEPTHTABLE(K,L1)=TBELV
-C        END IF
-C      END IF  
-C 1313 IF(TBELV.LE.BOTIJ) GO TO 1320
-C      DV = (TBELV-BOTIJ)*DELC(J)*DELR(I)   
-C      EVOL = EVOL + DV
-C 1320 CONTINUE
-Cdep Added printing of area for each lake depth
-Cdep  WRITE(IOUT,1315) TBELV, EVOL
-C      WRITE(IOUT,1315) TBELV, EVOL, AREATABLE(K,L1)
-C      TBELV = TBELV + TBNC
-C 1325 CONTINUE
       WRITE(IOUT,1326)
  1326 FORMAT(120X)
 Cdep  set minimum and maximum lake stages for transient simulations
@@ -935,19 +962,22 @@ Cdep  set minimum and maximum lake stages for transient simulations
       END IF
  1330 CONTINUE
  1331 CONTINUE
-C
-Cdep initialized arrays to zero where allocated
-C
-C-- INITIALIZE STREAM INFLOW SEGMENT ARRAY TO ZERO.
-Cdep      DO 400 LNUM=1,NLAKES
-Cdep         DO 400 LNP=1,NSS
-Cdep400         ITRB(LNUM,LNP)=0
-C
-C-- INITIALIZE STREAM OUTFLOW SEGMENT ARRAY TO ZERO.
-Cdep      DO 500 LNUM=1,NLAKES
-Cdep         DO 500 LNP=1,NSS
-Cdep500         IDIV(LNUM,LNP)=0
-C
+      ELSE IF ( KKPER==1 ) THEN
+! Read tables for stage,volume, and area relations.
+        DO L1=1,NLAKES
+          WRITE(IOUT,1399) L1
+          iunit = LAKTAB(L1)
+Cdep  revised print statement to include area
+ 1399 FORMAT(//1X,'STAGE/VOLUME RELATION FOR LAKE',I3//6X,'STAGE',
+     1        8X,'VOLUME',8X,'AREA'/)
+          DO  INC=1,151
+          READ(iunit,*) DEPTHTABLE(INC,L1), VOLUMETABLE(INC,L1), 
+     +                    AREATABLE(INC,L1) 
+          WRITE(IOUT,1315) DEPTHTABLE(INC,L1), VOLUMETABLE(INC,L1), 
+     +                    AREATABLE(INC,L1) 
+          END DO
+        END DO      
+      END IF
       IF(IUNITSFR.LE.0) THEN
          NDV=0
          NTRB=0
@@ -1116,7 +1146,7 @@ C7------RETURN
 C
       SUBROUTINE GWF2LAK7AD(KKPER,KKSTP,IUNITGWT,IGRID)
 C
-C------VERSION 7.1 JUNE 2006 GWF2LAK7AD; REVISIONS AUGUST 2009 DEP&RGN
+C------VERSION 7.1 JUNE 2006 GWF2LAK7AD; REVISED FEBRUARY 6, 2012
 C
 C     ******************************************************************
 C     ADVANCE TO NEXT TIME STEP FOR TRANSIENT LAKE SIMULATION, AND COPY
@@ -1126,7 +1156,9 @@ C     SPECIFICATIONS:
 C     ------------------------------------------------------------------
       USE GWFLAKMODULE, ONLY: NLAKES, LKNODE, FLOB, STAGES,
      +                        STGNEW, STGOLD, VOLOLDD, VOLOLD, VOLINIT,
-     +                        STGOLD2
+     +                        BOTTMS, IDIV, STGOLD2, NDV
+      USE GWFSFRMODULE, ONLY: DLKSTAGE
+      USE GLOBAL,       ONLY: IOUT
 C     ------------------------------------------------------------------
 C     FUNCTIONS
 C     ------------------------------------------------------------------
@@ -1153,7 +1185,27 @@ Cdep  initialized VOLINIT and VOLOLD to VOLOLDD 6/4/2009
           VOLOLDD(I)=VOLTERP(STGOLD(I),I)
           VOLOLD(I)=VOLOLDD(I)
         END IF 
+! Moved this code from 7FM  10/19/10
+         DO IDV=1,NDV
+           INODE=IDIV(I,IDV)
+           IF (INODE.GT.0) THEN
+             IF( DLKSTAGE(1,INODE).LT.DBLE(BOTTMS(I))) THEN
+               WRITE(IOUT,971)I,BOTTMS(I),
+     +                           DLKSTAGE(1,INODE),INODE
+               CALL USTOP(' ')
+             END IF
+           END IF
+         END DO
+ ! To hear.
       END DO
+ 971           FORMAT(' BOTTOM ELEVATION OF LAKE ',I5,' IS ', F10.2,
+     +                 ' AND IS ABOVE OUTLET ELEVATION OF ', F10.2,
+     +                 ' FOR STREAM SEGMENT ',I5,/1X,
+     +                 ' THIS WILL CAUSE PROBLEMS IN COMPUTING LAKE',
+     +                 ' STAGE USING THE NEWTON METHOD. '/1X,
+     +                 ' ELEVATION OF STREAM OUTLET MUST BE GREATER'
+     +                 ' THAN OR EQUAL TO THE LOWEST ELEVATION OF THE',
+     +                 ' LAKE.',/1X,'*****PROGRAM STOPPING'/)
 C2 ----- IF NOT FIRST TIME STEP, OR FIRST STRESS PERIOD, UPDATE
 C           STGOLD BY STGNEW.
 ! RGN MOVED TO ABOVE. STGOLD SHOULD BE UPDATED EVERY TIME STEP! 4/17/09
@@ -1203,7 +1255,6 @@ C-------ONLY CHANGE IBOUND FOR VERTICALLY ADJACENT NODE FACES
       IL = ILAKE(1,L)
       IR = ILAKE(2,L)
       IC = ILAKE(3,L)
-      IF (IL.EQ.1) GO TO 10  !JDH
 C
 C-------RESET AFTER EXECUTING RECHARGE OR ET ROUTINES
       IF(NFLG.EQ.1) GO TO 8
@@ -1226,7 +1277,7 @@ C3------RETURN
       RETURN
       END
 C
-      SUBROUTINE GWF2LAK7FM(KITER,KKPER,KKSTP,IUNITSFR,IUNITUZF,IGRID)
+      SUBROUTINE GWF2LAK7FM(KKITER,KKPER,KKSTP,IUNITSFR,IUNITUZF,IGRID)
 C
 C----- USGS VERSION 7.1; JUNE 2006 GWF2LAK7FM
 Cdep  MODIFIED SUBROUTINE TO ITERATIVELY SOLVE FOR LAKE STAGE EVEN
@@ -1240,7 +1291,7 @@ C
       USE GLOBAL,       ONLY: NCOL, NROW, NLAY, IBOUND, IOUT, ISSFLG, 
      +                        DELR, DELC, LBOTM, BOTM, HNEW, HCOF, RHS 
       USE GWFBASMODULE, ONLY: DELT
-      USE GWFSFRMODULE, ONLY: STRIN, STROUT, FXLKOT, DLKSTAGE
+      USE GWFSFRMODULE, ONLY: STRIN, STROUT, FXLKOT, DLKSTAGE, SEG
       USE GWFUZFMODULE, ONLY: SURFDEP,IUZFBND,FINF,VKS
 C     ------------------------------------------------------------------
 C     SPECIFICATIONS:
@@ -1249,31 +1300,40 @@ Cdep     and outflow rates
 C     ------------------------------------------------------------------
 C     FUNCTIONS
 C     -----------------------------------------------------------------
+      IMPLICIT NONE
       DOUBLE PRECISION FINTERP, DERIVTERP, OUTFLWTERP, VOLTERP, SURFTERP
       EXTERNAL FINTERP, DERIVTERP, OUTFLWTERP, VOLTERP, SURFTERP
-      DOUBLE PRECISION STGTERP
-      EXTERNAL STGTERP
+      DOUBLE PRECISION STGTERP, FXLKOT_TERP
+      EXTERNAL STGTERP, FXLKOT_TERP
 C     -----------------------------------------------------------------
 C     ARGUMENTS
 C     -----------------------------------------------------------------
-      INTEGER, INTENT(IN) :: KITER, KKPER, IUNITSFR, IUNITUZF, IGRID    
+      INTEGER, INTENT(IN) :: KKITER, KKPER, IUNITSFR, IUNITUZF, IGRID, 
+     1                       KKSTP    
 Cdep  added runoff and flobo3
       REAL :: RUNOFF
 Cdep  added unsaturated flow beneath lakes flag as a local variable
-      INTEGER iuzflg
+      INTEGER ISS, LK, ITRIB, INODE, LAKE, MTER, IICNVG, L1, MAXITER
+      INTEGER NCNV, LL, II, L, IC, IR, IL, ITYPE
+      INTEGER LI, INOFLO, IDV, IL1,n
 Cdep  added SURFDPTH, CONDMX,BOTLKUP,BOTLKDN  3/3/2009
-      DOUBLE PRECISION BOTLK,BOTCL,CONDUC,H,FLOBOT,STGON,FLOBO2,
-     1                 FLOBO1,FLOBO3,H1,THET1,CLOSEZERO,
+      DOUBLE PRECISION BOTLK,BOTCL,CONDUC,H,FLOBOT,STGON,
+     1                 FLOBO3,THET1,CLOSEZERO,
      2                 SURFDPTH,CONDMX,BOTLKUP,BOTLKDN, FLOTOUZF,
      3                 VOLTM1,VOL2,RAMPGW,RAMPSTGO,RAMPSTGN,
-     4                 RAMPSTGON,HTEMP,WITHDRW3
+     4                 RAMPSTGON,HTEMP,WITHDRW3     
 Cdep  added double precision variables
-      DOUBLE PRECISION RESID1, RESID2, DERIV, DSTAGE, DLSTG
+      DOUBLE PRECISION RESID1, RESID2, DERIV, DSTAGE, DLSTG, Botlake, 
+     1                 Splakout, dy, SRFPT, HD
+      DOUBLE PRECISION RUNF, AREA, RAIN, EV, THCK, SSMN1, SSMX1,
+     1                 OUTFLOW, DSTG, VOLNEW1, VOLNEW2, STAGE2
 !      PARAMETER(CLOSEZERO = 1.0E-07)
 C     ------------------------------------------------------------------
 C------SET POINTERS FOR THE CURRENT GRID.
       CALL SGWF2LAK7PNT(IGRID)
       CLOSEZERO = 1.0D-09
+      DLSTG = 0.00001D0
+      SURFDPTH = DBLE(SURFDEPTH)
 
 C1------IF LKNODE<=0 THERE ARE NO LAKE NODES. RETURN.
       IF (LKNODE.LE.0) RETURN
@@ -1282,7 +1342,7 @@ C
 C2------PROCESS EACH CELL IN THE ILAKE LIST.
 Cdep   added STGITER, and STGNEW to INITIALIZATION.
       DO LK=1,NLAKES
-        IF(KITER.EQ.1)THEN
+        IF(KKITER.EQ.1)THEN
          STGITER(LK) = STGOLD(LK)
          STGNEW(LK) = STGOLD(LK)
         END IF
@@ -1293,7 +1353,6 @@ Cdep   added STGITER, and STGNEW to INITIALIZATION.
         GWRATELIM(LK) = 0.0
         SURFOT(LK)=0.0
       END DO
-      SURFDPTH = DBLE(SURFDEPTH)
       BOTLKUP = 0.0D0
       BOTLKDN = 0.0D0
       CONDMX = 0.0D0
@@ -1348,6 +1407,7 @@ C         CONVERGED. NCNCVR(LAKE) IS CONVERGENCE FLAG FOR EACH LAKE.
         DO LAKE=1,NLAKES
           IF(NCNCVR(LAKE).EQ.0) NCNV = 1
         END DO
+        IF ( L1.GT.MAXITER ) NCNV = 0
         IF ( THET1.LT.CLOSEZERO) NCNV = 0
         IF ( NCNV.EQ.0 ) IICNVG = 1
 C
@@ -1359,6 +1419,7 @@ C4C-----INITIALIZE VARIABLES.
           PRECIP(LL)=0.0D0
           SEEP(LL)=0.0D0
           SEEP3(LL)=0.0D0
+          SEEPUZ(LL)=0.0D0
           SURFA(LL)=0.0
           EVAPO(LL) = EVAPLK(LL)
           WITHDRW(LL) = WTHDRW(LL)
@@ -1370,7 +1431,7 @@ C4C-----INITIALIZE VARIABLES.
           END IF
         END DO
 C
-C5------II LOOP IS TO BALANCES INFLOWS AND OUTFLOWS TO/FROM A LAKE.
+C5------II LOOP BALANCES INFLOWS AND OUTFLOWS TO/FROM A LAKE.
 C   WHEN II=1, FLOW INTO LAKE FROM ALL SOURCES ARE CALCULATED.
 C   WHEN II=2, SEEPAGE TO AND FROM LAKE AND RESIDUAL TERMS ARE ADDED TO 
 C   GROUNDWATER MATRIX.LAKE SEEPAGE TO GROUNDWATER LIMITED TO AVAILABLE
@@ -1383,7 +1444,8 @@ C   WATER IN LAKE.
 C
 C5B------DETERMINE LAKE AND NODAL LAYER,ROW,COLUMN NUMBER.
             LAKE=ILAKE(4,L)
-            iuzflg = 0
+            IF( ISS.EQ.1 ) STGOLD(LAKE)=STGNEW(LAKE)
+            STGON = (1.0D0-THET1)*STGOLD(LAKE) + THET1*STGNEW(LAKE)
             ITYPE = (ILAKE(5,L)+1)/2
             IF(ITYPE.EQ.3) ITYPE=0
             AREA = DELR(IC)*DELC(IR)
@@ -1396,266 +1458,97 @@ C5B------DETERMINE LAKE AND NODAL LAYER,ROW,COLUMN NUMBER.
             IF(IL.EQ.NLAY.AND.CNDFCT(L).EQ.0.0) BOTLK = BOTCL
             RAIN = PRCPLK(LAKE)
             EV = EVAPLK(LAKE)
-C
-C5C-----INITIALIZE GROUNDWATER SEEPAGE VARIABLES AND CONDUCTANCE FACTOR.
-            DLSTG = 0.000001
+            CONDUC=CNDFCT(L) 
             FLOBOT = 0.0D0
-            FLOBO1 = 0.0D0
-            FLOBO2 = 0.0D0
             FLOBO3 = 0.0D0
             FLOTOUZF = 0.0D0
             IF ( NCNCVR(LAKE).NE.2 ) THEN
-              CONDUC=CNDFCT(L)
-C
-C5D-----SET STGOLD TO STGNEW IF STEADY STATE SIMULATION AND COMPUTE 
-C         STGON.
+              IL1 = IL
+              IF ( ITYPE.EQ.0 ) THEN
+                DO WHILE (IL1 .LE. NLAY)
+                  IF( IBOUND(IC,IR,IL1).GT.0 ) THEN 
+                    EXIT
+                  ELSE
+                    IL1 = IL1 + 1
+                  END IF
+                END DO
+                IF ( IL1.GT.NLAY ) IL1 = NLAY
+              END IF
+              IF( IBOUND(IC,IR,IL1).LE.0 ) THEN
+ !               IF ( CONDUC.GT.CLOSEZERO ) WRITE(IOUT,506) L,IC,IR,IL
+                CONDUC = 0.0
+              END IF  
               IF(CONDUC.GT.0.0) THEN
                 H=HNEW(IC,IR,IL)
-                IF( ISS.EQ.1 ) STGOLD(LAKE)=STGNEW(LAKE)
-                STGON = (1.0D0-THET1)*STGOLD(LAKE) + THET1*STGNEW(LAKE)
-C
-C6------COMPUTE SEEPAGE INTO OR OUT OF A LAKE BED NODE WHEN ITYPE=0.
-                IF (ITYPE.EQ.0) THEN 
-                  IL1 = IL
-                  IF( IBOUND(IC,IR,IL).LE.0 ) THEN
-                    ICHECK = 0
-                    DO LI=IL,NLAY
-                      IF( IBOUND(IC,IR,LI).GT.0 ) ICHECK = 1
-                    END DO
-                    IF ( ICHECK.EQ.0 ) THEN
-                      WRITE(IOUT,506) L,IC,IR,IL
-                    END IF
-                    IF( LI.LE.NLAY ) THEN
-                      IL1 = LI
-                    ELSE
-                      IL1 = NLAY
-                    END IF
-                    H = BOTLK
-                  END IF
-C
-C6B------RAMP CONDUCTANCE ACROSS HORIZONTAL CELL FACE WHEN
-C          LAKE STAGE AND GROUNDWATER HEAD NEAR LAKEBED.    
-                  BOTLKUP = BOTLK + SURFDPTH
-                  BOTLKDN = BOTLK
-                  CONDMX = CONDUC
-                  IF(SURFDPTH.GT.CLOSEZERO) THEN
-                    RAMPGW = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-H)
-                    IF ( RAMPGW-CONDMX.GT.0.0D0 ) RAMPGW = CONDMX   
-                    IF ( RAMPGW.LE.0.0D0 ) RAMPGW = 0.0D0 
-                    RAMPSTGO = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-STGOLD(LAKE))
-                    IF ( RAMPSTGO-CONDMX.GT.0.0D0 ) RAMPSTGO = CONDMX   
-                    IF ( RAMPSTGO.LE.0.0D0 ) RAMPSTGO = 0.0D0
-                    RAMPSTGN = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-STGNEW(LAKE))      
-                    IF ( RAMPSTGN-CONDMX.GT.0.0D0 ) RAMPSTGN = CONDMX   
-                    IF ( RAMPSTGN.LE.0.0D0 ) RAMPSTGN = 0.0D0
-                  ELSE
-                    RAMPGW=CONDMX
-                    RAMPSTGO=CONDMX
-                    RAMPSTGN=CONDMX
-                  END IF
-                  IF( H-BOTLKDN.GT.CLOSEZERO ) THEN
-                    HTEMP = H
-                  ELSE
-                    HTEMP=BOTLKDN
-                  END IF
-C
-C6C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1.
-                  CONDUC=0.5*(RAMPGW+RAMPSTGO)
-                  IF( STGOLD(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
-                      FLOBO1=CONDUC*(STGOLD(LAKE)-HTEMP)
-                  ELSE
-                      FLOBO1=CONDUC*(BOTLKDN-HTEMP)
-                  END IF 
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF (H-BOTLK.LT.-0.5*SURFDEP) THEN
-                        IF ( VKS(IC,IR)*AREA-FLOBO1.LT.CLOSEZERO )
-     +                          THEN
-                           FLOBO1 = VKS(IC,IR)*AREA
-                         END IF
-                       END IF
-                    END IF
-                  END IF
-C
-C6D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2 AND FLOBO3.
-                  CONDUC=0.5*(RAMPGW+RAMPSTGN)
-                  IF( STGNEW(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
-                    FLOBO2 = CONDUC*(STGNEW(LAKE)-HTEMP)       
-                    FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-HTEMP)
-                  ELSE
-                    FLOBO2 = CONDUC*(BOTLKDN-HTEMP)
-                    FLOBO3 = CONDUC*(BOTLKDN+DLSTG-HTEMP)
-                  END IF
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF ( H-BOTLK.LT.-0.5*SURFDEP ) THEN
-                        IF ( VKS(IC,IR)*AREA-FLOBO1.LT.CLOSEZERO )
-     +                           THEN
-                          FLOBO2 = VKS(IC,IR)*AREA
-                          FLOBO3 = VKS(IC,IR)*AREA
-                        END IF
-                      END IF
-                    END IF
-                  END IF
-C
-C6E------COMPUTE LAKE SEEPAGE (FLOBOT) AS A FRACTION OF FLOBO1 AND 
-C          FLOB02 AND FLOBO3 AS A FRACTION OF FLOBO1 AND FLOBO3.
-                  FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
-                  FLOBO3 = THET1*FLOBO3 + (1.0D0-THET1)*FLOBO1  
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF ( H-BOTLK.LT.-0.5*SURFDEP ) THEN
-                        IF ( FLOBOT/AREA.GT.VKS(IC,IR) )
-     +                  FLOBOT = VKS(IC,IR)*AREA
-                        FLOTOUZF = FLOBOT
-                        FLOBO3 = FLOTOUZF 
-                        FLOBOT = 0.0D0
-                        CONDUC = FLOTOUZF/(STGNEW(LAKE)-BOTLK)
-                        FINF(IC,IR)=FLOTOUZF/AREA
-                      END IF
-                    END IF
-                  END IF
-C
-C7------COMPUTE SEEPAGE INTO OR OUT OF A LAKE WALL NODE 
-C         WHEN ITYPE=1 OR 2.       
-                ELSE IF ( ITYPE.EQ.1.OR.ITYPE.EQ.2 ) THEN
-                  IF( IBOUND(IC,IR,IL).GT.0 ) THEN 
-                    HD = H
-                    IF( H.GT.BOTM(IC,IR,LBOTM(IL)-1) )
-     1                                   HD = BOTM(IC,IR,LBOTM(IL)-1)
-C
-C7B------CONDUCTANCE ACROSS VERTICAL CELL FACE DEPENDENT ON 
-C          SATURATED THICKNESS.
-                    THCK = HD - BOTCL
-                    IF( THCK.LE.0.0 ) THCK = 0.0
-                    CONDUC = CONDUC*THCK 
-                    IF ( H.LT.BOTM(IC,IR,LBOTM(IL)) )
-     +                    H = BOTM(IC,IR,LBOTM(IL))
-C
-C7C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1. 
-                    IF( STGOLD(LAKE)-BOTCL.GT.CLOSEZERO ) THEN
-                      FLOBO1 = CONDUC*(STGOLD(LAKE)-H)  
-                      H1 = H
-                    ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
-                      FLOBO1 = CONDUC*(BOTCL-H)  
-                    END IF
-C
-C7D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2 AND FLOBO3.
-                    IF( STGNEW(LAKE)-BOTCL.GT.CLOSEZERO )THEN
-                      FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-H)
-                      FLOBO2 = CONDUC*(STGNEW(LAKE)-H)                  
-                    ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
-                      FLOBO3 = CONDUC*(BOTCL+DLSTG-H)
-                      FLOBO2 = CONDUC*(BOTCL-H)
-                    ELSE IF ( STGNEW(LAKE)+DLSTG.GE.BOTCL )THEN
-                      FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-H)
-                    END IF 
-C
-C7E------COMPUTE LAKE SEEPAGE (FLOBOT) AS A FRACTION OF FLOBO1 AND 
-C         FLOB02 AND FLOBO3 AS A FRACTION OF FLOBO1 AND FLOBO3.       
-                    FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
-                    FLOBO3  = THET1*FLOBO3 + (1.0D0-THET1)*FLOBO1
-                    SUMCNN(LAKE) = SUMCNN(LAKE) + CONDUC
-                    H1 = H
-                  END IF
-                END IF
-C
-C8-------SEEPAGE RATES ADDED TO MATRIX AND RESIDUAL TERMS.
                 INOFLO = 0
-C8B------COMPUTE FLWITER AND FLWITER3 DURING FIRST LOOP THROUGH
-C          CALCULATIONS.
-                IF ( II==1 ) THEN
-                  IF ( FLOBOT.LT.0.0D0 ) FLWITER(LAKE) = 
-     +                 FLWITER(LAKE) - FLOBOT
-                  IF ( FLOBO3.LT.0.0D0 ) FLWITER3(LAKE) = 
-     +                 FLWITER3(LAKE) - FLOBO3
-                END IF
-C8C------COMPUTE FLWITER AND FLOWITER3 DURING SECOND LOOP THROUGH 
-C          CALCULATIONS.
-                IF ( II==2 ) THEN
-                  IF ( FLOBOT>=FLWITER(LAKE) ) THEN
-                    FLOBOT=FLWITER(LAKE)
-                    FLWITER(LAKE) = 0.0
-                    INOFLO = 1
-                  ELSE IF ( FLOBOT.GT.CLOSEZERO )THEN
-                    FLWITER(LAKE) = FLWITER(LAKE) - FLOBOT
-                  END IF
-                  IF ( FLOBO3>=FLWITER3(LAKE) ) THEN
-                    FLOBO3=FLWITER3(LAKE)
-                    FLWITER3(LAKE) = 0.0
-                    INOFLO = 1
-                  ELSE IF ( FLOBO3.GT.CLOSEZERO )THEN
-                    FLWITER3(LAKE) = FLWITER3(LAKE) - FLOBO3
-                  END IF
-                END IF
 C
-C9------ADD SEEPAGE RATES AND RESIDUAL TERMS TO GROUNDWATER MATRIX 
+C9A------CALCULATE SEEPAGE.
+C           
+                CALL GET_FLOBOT(IC, IR, IL1, ITYPE, INOFLO,CONDUC,
+     1                FLOBOT,FLOBO3,FLOTOUZF,DLSTG,CLOSEZERO,H,
+     2                THET1,ISS,LAKE,II,SURFDPTH,AREA,IUNITUZF,
+     3                BOTLK,BOTCL,L1)
+C
+C9B------ADD SEEPAGE RATES AND RESIDUAL TERMS TO GROUNDWATER MATRIX 
 C         WHEN ITYPE = 0.
-                IF( NCNV == 0 .AND. II==2 ) THEN
+                IF( NCNV == 0 .AND. II==2 ) THEN 
                   IF ( L==LKNODE ) NCNCVR(LAKE) = 2
                   IF ( ITYPE.EQ.0 ) THEN
                     IF ( INOFLO==1 ) THEN
                       RHS(IC,IR,IL1)=RHS(IC,IR,IL1)-FLOBOT
                     ELSE
-                      IF (STGON-BOTLKDN.GT.CLOSEZERO)THEN
-                        IF(SURFDPTH.GT.CLOSEZERO) THEN
-                          RAMPSTGON = CONDMX-(CONDMX/SURFDPTH)*
-     +                             (BOTLKUP-STGON)
-                          IF ( RAMPSTGON-CONDMX.GT.0.0D0 ) 
-     +                              RAMPSTGON = CONDMX   
-                          IF ( RAMPSTGON.LE.0.0D0 ) RAMPSTGON = 0.0D0
-                        ELSE
-                          RAMPSTGON=CONDMX
-                        END IF
-                        CONDUC=(RAMPGW+RAMPSTGON)/2.0
-                        IF (H.LE.BOTLKDN) THEN
+                      IF (STGON-BOTLK.GT.CLOSEZERO)THEN
+                        IF (H.LE.BOTLK) THEN
                           IF (IUNITUZF.EQ.0) THEN
-                            IF(IL1.LE.NLAY)THEN
                               RHS(IC,IR,IL1)=RHS(IC,IR,IL1)-FLOBOT
-                            END IF
                           ELSE IF (IUZFBND(IC,IR).EQ.0 ) THEN
-                            IF(IL1.LE.NLAY)THEN
                               RHS(IC,IR,IL1)=RHS(IC,IR,IL1)-FLOBOT
-                            END IF
                           END IF
-                        ELSE       
-                          RHS(IC,IR,IL)=RHS(IC,IR,IL) - STGON*CONDUC
-                          HCOF(IC,IR,IL)=HCOF(IC,IR,IL) - CONDUC
+                        ELSE  
+                          RHS(IC,IR,IL1)=RHS(IC,IR,IL1) - STGON*CONDUC
+                          HCOF(IC,IR,IL1)=HCOF(IC,IR,IL1) - CONDUC
                         END IF
                       ELSE
-                        IF ( H.GT.BOTLKDN ) THEN
-                          RHS(IC,IR,IL)=RHS(IC,IR,IL) - BOTLKDN*CONDUC
-                          HCOF(IC,IR,IL)=HCOF(IC,IR,IL) - CONDUC
+                        IF ( H.GT.BOTLK ) THEN
+                          RHS(IC,IR,IL1)=RHS(IC,IR,IL1) - BOTLK*CONDUC
+                          HCOF(IC,IR,IL1)=HCOF(IC,IR,IL1) - CONDUC
                         END IF
                       END IF
                     END IF
 C
-C9B-----ADD SEEPAGE RATES AND RESIDUAL TERMS TO GROUNDWATER MATRIX 
+C9BC-----ADD SEEPAGE RATES AND RESIDUAL TERMS TO GROUNDWATER MATRIX 
 C         WHEN ITYPE = 1 OR 2.                  
                   ELSE IF ( ITYPE.EQ.1.OR.ITYPE.EQ.2 ) THEN
                     IF ( INOFLO==1 ) THEN
                       RHS(IC,IR,IL1)=RHS(IC,IR,IL1)-FLOBOT
                     ELSE
-                      IF (STGON.GT.BOTCL.OR.THCK.GT.0.0) THEN
-                          IF(STGON-BOTCL.GT.CLOSEZERO)THEN
-                            IF ( H-BOTCL.GT.CLOSEZERO ) THEN
-                              RHS(IC,IR,IL)=RHS(IC,IR,IL) - STGON*CONDUC
-                              HCOF(IC,IR,IL)=HCOF(IC,IR,IL) - CONDUC
-                            END IF
-                          ELSE IF( H-BOTCL.GT.CLOSEZERO ) THEN
-                            RHS(IC,IR,IL)=RHS(IC,IR,IL) - BOTCL*CONDUC
-                            HCOF(IC,IR,IL)=HCOF(IC,IR,IL) - CONDUC
-                          END IF
-                        END IF
-                    END IF           
-                  END IF
-                END IF
+                      IF( IBOUND(IC,IR,IL1).GT.0 ) THEN 
+                        HD = H
+                        IF( H.GT.BOTM(IC,IR,LBOTM(IL1)-1) )
+     1                             HD = BOTM(IC,IR,LBOTM(IL1)-1)
 C
-C10------COMPUTE ACCUMULATIVE SEEPAGE THROUGH LAKEBED SEDIMENTS 
+C9D------CONDUCTANCE ACROSS VERTICAL CELL FACE DEPENDENT ON 
+C          SATURATED THICKNESS.
+                        THCK = HD - BOTCL
+                        IF( THCK.LE.0.0 ) THCK = 0.0
+                      END IF
+                      IF (STGON.GT.BOTCL.OR.THCK.GT.0.0) THEN
+                        IF(STGON-BOTCL.GT.CLOSEZERO)THEN
+                          IF ( H-BOTCL.GT.CLOSEZERO ) THEN
+                            RHS(IC,IR,IL1)=RHS(IC,IR,IL1) - STGON*CONDUC
+                            HCOF(IC,IR,IL1)=HCOF(IC,IR,IL1) - CONDUC
+                          END IF
+                        ELSE IF( H-BOTCL.GT.CLOSEZERO ) THEN
+                          RHS(IC,IR,IL1)=RHS(IC,IR,IL1) - BOTCL*CONDUC
+                          HCOF(IC,IR,IL1)=HCOF(IC,IR,IL1) - CONDUC
+                        END IF
+                      END IF
+                    END IF
+                  END IF
+C
+C10------COMPUTE NET SEEPAGE THROUGH LAKEBED SEDIMENTS 
 C          WHEN II=2.
+                END IF
                 IF (II==2)THEN
                   SEEP(LAKE)=SEEP(LAKE)-FLOBOT-FLOTOUZF
                   SEEP3(LAKE)=SEEP3(LAKE)-FLOBO3
@@ -1679,12 +1572,13 @@ C          WHEN THET=0.
 C
 C12------COMPUTE EVAPORATION AND PRECIPITATION USING STGOLD AND 
 C          ADD PRECIPITATION TO FLWITER AND FLWITER3.
-          SURFA(LAKE)=FINTERP(STGOLD(LAKE),LAKE)
+          SURFA(LAKE)=FINTERP(STGNEW(LAKE),LAKE)
           EVAP(LAKE)=EVAPLK(LAKE)*SURFA(LAKE)
           PRECIP(LAKE)=PRCPLK(LAKE)*SURFA(LAKE)
           FLWITER(LAKE) = FLWITER(LAKE) + PRECIP(LAKE)
-          EVAP3(LAKE)=EVAPLK(LAKE)*SURFA(LAKE)
-          PRECIP3(LAKE)=PRCPLK(LAKE)*SURFA(LAKE) 
+          SRFPT=FINTERP(STGNEW(LAKE)+DLSTG,LAKE)
+          EVAP3(LAKE)=EVAPLK(LAKE)*SRFPT
+          PRECIP3(LAKE)=PRCPLK(LAKE)*SRFPT
           FLWITER3(LAKE) = FLWITER3(LAKE) + PRECIP3(LAKE)
 C
 C13------LIMIT WITHDRW TO LAKE INFLOW WHEN WITHDRAWALS EXCEED
@@ -1704,7 +1598,7 @@ C           INFLOW (INCLUDING AVAILABLE LAKE STORAGE).
           END IF
 C
 C14------LIMIT EVAPORATION TO LAKE INFLOW WHEN EVAPORATION EXCEEDS
-C          INFLOW (INCLUDING AVAILABLE LAKE STROAGE AND WITHDRAWALS).
+C          INFLOW (INCLUDING AVAILABLE LAKE STRORAGE AND WITHDRAWALS).
           IF ( EVAP(LAKE)>=FLWITER(LAKE) ) THEN
             EVAP(LAKE)=FLWITER(LAKE)
             FLWITER(LAKE) = 0.0D0
@@ -1723,34 +1617,35 @@ C
 C15-----SUM UP OUTFLOWS FROM OUTFLOWING STREAM REACHES.
             DSRFOT(LAKE) = 0.0D0
             SURFOT(LAKE) = 0.0D0 
-            IF(IUNITSFR.GT.0) THEN
+ ! 11/10 Outflow is zero when all is lost to ET. ******* NEW(.AND.FLWITER(LAKE).GT.CLOSEZERO)
+            IF(IUNITSFR.GT.0.AND.FLWITER(LAKE).GT.CLOSEZERO) THEN
               DO IDV=1,NDV
                 INODE=IDIV(LAKE,IDV)
-                IF (INODE.GT.0) THEN
-                  IF( DLKSTAGE(1,INODE).LT.BOTTMS(LAKE)) THEN
-                    WRITE(IOUT,971)LAKE,BOTTMS(LAKE),
-     +                           DLKSTAGE(1,INODE),INODE
-                    CALL USTOP(' ')
-                  END IF
-                  IF (FXLKOT(INODE).LE.0.0) THEN
-                    DSTAGE = STGITER(LAKE)
+                IF (INODE.GT.0) THEN   
+                  Splakout = DBLE(SEG(2,INODE))
+                  DSTAGE = STGITER(LAKE)
+                  IF ( SEG(2,INODE).LE.1.0e-6 ) THEN
+                    Botlake = DBLE(BOTTMS(LAKE))
                     DSRFOT(LAKE) = DSRFOT(LAKE) + DERIVTERP(DSTAGE,
      +                               INODE)
                     STROUT(INODE) = OUTFLWTERP(DSTAGE,INODE)
                   ELSE
+! Set Botlake to elevation of stream channel for specified flow diversion.
+                    Botlake = SEG(8,INODE)
                     STROUT(INODE) = 0.0
+                    FXLKOT(INODE) = FXLKOT_TERP(DSTAGE,Botlake,
+     +                                          Splakout,dy)
+                    DSRFOT(LAKE) = DSRFOT(LAKE) + dy
                   END IF
                   SURFOT(LAKE)= SURFOT(LAKE) + STROUT(INODE)+ 
      +                          FXLKOT(INODE)
-                  IF(SURFOT(LAKE).LT.0.0)SURFOT(LAKE)=0.0
+                  IF(SURFOT(LAKE).LT.CLOSEZERO )SURFOT(LAKE)=0.0
                 END IF
               END DO
             END IF
-C
-C16-----COMPUTE NEW LAKE STAGE USING NEWTON METHOD AND THET1>0.
             IF ( THET1.GT.CLOSEZERO ) THEN
               IF ( NCNV == 1 ) THEN
-! RGN have to calc overland flow again becuase it it lost from above. 12/3/09
+! Calc overland flow again.
                 IF(RNF(LAKE).GE.0.0) RUNF = RNF(LAKE)
                 IF(RNF(LAKE).LT.0.0) RUNF =-RNF(LAKE)*
      +                               PRCPLK(LAKE)*BGAREA(LAKE)
@@ -1760,18 +1655,26 @@ C16-----COMPUTE NEW LAKE STAGE USING NEWTON METHOD AND THET1>0.
                   RUNOFF = 0.0
                 END IF
 C
+C2C --- SUM OF BOTH STREAMFLOW IN AND OVERLAND RUNOFF.
+C         (INCLUDES LAKE VOLUME).
+        FLWIN(LAKE) = SURFIN(LAKE)+RUNF+RUNOFF+
+     +                VOLTERP(STGOLD(LAKE),LAKE)/DELT
+C
+C16-----COMPUTE NEW LAKE STAGE USING NEWTON METHOD AND THET1>0.
+C
 C16B----COMPUTE RESIDUALS FOR TRANSIENT SIMULATIONS.
                 IF(ISS.EQ.0) THEN
+                  VOLNEW1 = VOLTERP(STGNEW(LAKE),LAKE)
                   RESID1 = (PRECIP(LAKE)-EVAP(LAKE)+RUNF+RUNOFF-
      1                WITHDRW(LAKE)+SURFIN(LAKE)-SURFOT(LAKE)+
-     2                SEEP(LAKE))-(VOLTERP(STGNEW(LAKE),LAKE)-
-     3                VOLOLDD(LAKE))/DELT
+     2                SEEP(LAKE))-(VOLNEW1-VOLOLDD(LAKE))/DELT
                   OUTFLOW = SURFOT(LAKE)+ DSRFOT(LAKE)*DLSTG
                   IF(OUTFLOW.LT.0.0)SURFOT(LAKE)=0.0
-                  RESID2 = (PRECIP(LAKE)-EVAP(LAKE)+RUNF+RUNOFF-
+                  STAGE2 = STGNEW(LAKE)+DLSTG
+                  VOLNEW2 = VOLTERP(STAGE2,LAKE)
+                  RESID2 = (PRECIP3(LAKE)-EVAP3(LAKE)+RUNF+RUNOFF-
      1                WITHDRW3+SURFIN(LAKE)-OUTFLOW+
-     2                SEEP3(LAKE))-(VOLTERP(STGNEW(LAKE)+DLSTG,LAKE)-
-     3                VOLOLDD(LAKE))/DELT
+     2                SEEP3(LAKE))-(VOLNEW2-VOLOLDD(LAKE))/DELT
 C
 C16C----COMPUTE RESIDUALS FOR STEADY STATE SIMULATIONS.
                 ELSE
@@ -1779,24 +1682,41 @@ C16C----COMPUTE RESIDUALS FOR STEADY STATE SIMULATIONS.
      1                WITHDRW(LAKE)+SURFIN(LAKE)-SURFOT(LAKE)+
      2                SEEP(LAKE))
                   OUTFLOW = SURFOT(LAKE)+ DSRFOT(LAKE)*DLSTG
-                  RESID2 = (PRECIP(LAKE)-EVAP(LAKE)+RUNF+RUNOFF-
+                  RESID2 = (PRECIP3(LAKE)-EVAP3(LAKE)+RUNF+RUNOFF-
      1                WITHDRW3+SURFIN(LAKE)-OUTFLOW+SEEP3(LAKE))
                 END IF
 C
 C16D----DETERMINE DERIVATIVE AND COMPUTE NEW LAKE STAGE.
-                IF (DABS(RESID2-RESID1).GT.0.0D0) THEN
+                IF ( DABS(RESID2-RESID1).GT.0.0 ) THEN
                   DERIV = (RESID2-RESID1)/(DLSTG)
-                  STGNEW(LAKE) = STGITER(LAKE) - RESID1/DERIV
+                  DSTG = RESID1/DERIV
+                  STGNEW(LAKE) = STGITER(LAKE) - DSTG
+                  DSTG = ABS(DSTG)
                 ELSE
-                  STGNEW(LAKE) = STGITER(LAKE)
+C16E----LINEAR CASE. SIMPLY CALCULATE STAGE BASED ON VOLUME.
+                  VOL2 = RESID1
+                  IF ( VOL2.LT.0.0 ) VOL2 = 0.0
+                  STGNEW(LAKE) = STGTERP(VOL2,LAKE)
+                  DSTG = ABS(STGNEW(LAKE) - STGITER(LAKE))
+                  NCNCVR(LAKE) = 1
                 END IF
+!      IF (kkiter==26)then
+!      write(iout,222)PRECIP(LAKE),EVAP(LAKE),RUNF,RUNOFF,
+!     1                WITHDRW(LAKE),SURFIN(LAKE),SURFOT(LAKE),
+!     2                SEEP(LAKE),VOLNEW1,VOLOLDD(LAKE),STGNEW(LAKE),
+!     3                resid1,SURFA(LAKE),deriv,dstg
+!      write(iout,222)PRECIP3(LAKE),EVAP3(LAKE),RUNF,RUNOFF,
+!     1                WITHDRW3,SURFIN(LAKE),OUTFLOW,
+!     2                SEEP3(LAKE),VOLNEW2,VOLOLDD(LAKE),STGNEW(LAKE),
+!     3                resid2,SRFPT,deriv,dstg
+!      END IF
+! 222  format(15e20.10)
                 IF(STGNEW(LAKE).LT.BOTTMS(LAKE)) 
      +             STGNEW(LAKE)=BOTTMS(LAKE)
-                DSTG = ABS(STGNEW(LAKE)-STGITER(LAKE))
                 IF(DSTG.LE.SSCNCR) NCNCVR(LAKE) = 1
               END IF
 C
-C17-----COMPUTE NEW LAKE STAGE EXPLICITEDLY WITH THET1=0.
+C17-----COMPUTE NEW LAKE STAGE EXPLICITLY WITH THET1=0.
             ELSE
               IF(ISS.EQ.0) THEN
 C
@@ -1825,7 +1745,7 @@ C18-----PRINT NEW LAKE STAGE AND PREVIOUS LAKE ITERATION STAGE
 C        WHEN LAKE STAGE DOES NOT CONVERGE.
       DO LAKE=1,NLAKES
         IF( L1.GE.MTER.AND.NCNCVR(LAKE).EQ.0 ) THEN
-          WRITE(IOUT,1004) KITER,  
+          WRITE(IOUT,1004) KKITER,  
      1    LAKE,STGNEW(LAKE), STGITER(LAKE)
         END IF
       END DO
@@ -1834,14 +1754,6 @@ C19------FORMAT STATEMENTS
 Cdep  101   FORMAT(4I5,3E20.10)    !format used for debugging
 Cdep  202  FORMAT(i5,8(1X,E20.10)) !format used for debugging
   506           FORMAT(1X,'ERROR - NO AQUIFER UNDER LAKE CELL ',4I5)
-  971           FORMAT(' BOTTOM ELEVATION OF LAKE ',I5,' IS ', F10.2,
-     +                 ' AND IS ABOVE OUTLET ELEVATION OF ', F10.2,
-     +                 ' FOR STREAM SEGMENT ',I5,/1X,
-     +                 ' THIS WILL CAUSE PROBLEMS IN COMPUTING LAKE',
-     +                 ' STAGE USING THE NEWTON METHOD. '/1X,
-     +                 ' ELEVATION OF STREAM OUTLET MUST BE GREATER'
-     +                 ' THAN OR EQUAL TO THE LOWEST ELEVATION OF THE',
-     +                 ' LAKE.',/1X,'*****PROGRAM STOPPING'/)
  1004  FORMAT(1X,'ITERATION ',I4,2X,'LAKE ',I4,2X,'NEW STAGE ',1PE14.8,
      1  '  DID NOT CONVERGE-- PREVIOUS INTERNAL ITERATION STAGE  ',
      2  1PE14.8,/)
@@ -1868,6 +1780,7 @@ C     ------------------------------------------------------------------
      +                        HNOFLO, VBVL, VBNM
       USE GWFSFRMODULE, ONLY: STRIN, DLKSTAGE, SLKOTFLW
       USE GWFUZFMODULE, ONLY: SURFDEP,IUZFBND,FINF,VKS
+      IMPLICIT NONE
       !rsr: argument IUNITSFR not used
       CHARACTER*16 TEXT
 Cdep  Added functions for interpolating between areas, derivatives,
@@ -1883,23 +1796,37 @@ C     -----------------------------------------------------------------
 C     -----------------------------------------------------------------
 C     ARGUMENTS
 C     -----------------------------------------------------------------
-      DOUBLE PRECISION BOTLK,BOTCL,CONDUC,H,FLOBOT,STGON,FLOBO2,
-     1FLOBO1,H1,RATE,RATIN,RATOUT
+      DOUBLE PRECISION BOTLK,BOTCL,CONDUC,H,FLOBOT,STGON,
+     1RATE,RATIN,RATOUT
       DOUBLE PRECISION THET1,SURFDPTH,CONDMX,BOTLKUP,BOTLKDN,VOL2
       DOUBLE PRECISION FLOTOUZF,SILLELEV,ADJSTAGE, voltest, areatest
       DOUBLE PRECISION RAMPGW,RAMPSTGO,RAMPSTGN,RAMPSTGON,HTEMP
+      DOUBLE PRECISION CLOSEZERO, FLOBO2, FLOBO3, RUNOFF, DLSTG
+      DOUBLE PRECISION RUNF, RUNFD, AREA, RAIN
+      REAL zero, FACE, R, WDRAW, OLDSTAGE, AVHD, TOTARE, SUM
+      REAL STGTST, SVT1, TVOLM, STO, FLSUM, TV, PPTIN, EOUT
+      REAL SEEPUZF, QIN, QOUT, QSIN, QSOUT, DENOM
+      INTEGER L1, IGRID, ISS, KPER, IBD, KCNT, LDR, NAUX, KSTP, IL
+      INTEGER IR, IC, LK, ITRIB, INODE, LAKE, IUNITUZF, II, L
+      INTEGER IUNITGWT, LL, K, J, I, JCLS, ICL, IC4, ICM4
+      INTEGER ITYPE, INOFLO, IC5, ICM, IS1, IS2, ICl1, LK3, LK1
+      INTEGER ICM2, IC2, IC3, ICNR, ICM3, ICNT, ICM1, L11, ICNR1
+      INTEGER ILB, IRB, ICB, LDR1, NN, IIC, JIC, LIC, IUNITGAGE
+      INTEGER NSOL, ILL, IL2, IUNITSFR, IL1
       DIMENSION JCLS(NCLS,ICMX)
       DIMENSION ILB(5),IRB(5),ICB(5)
       CHARACTER*16 LAKAUX(20)
       DIMENSION FACE(1)
       DATA TEXT /'   LAKE  SEEPAGE'/
       DATA LAKAUX(1)/'IFACE'/
-      PARAMETER (CLOSEZERO=1.0E-7)
+!      PARAMETER (CLOSEZERO=1.0E-7)
 C     ------------------------------------------------------------------
 C
 C------SET POINTERS FOR THE CURRENT GRID.
       CALL SGWF2LAK7PNT(IGRID)
       ISS = ISSFLG(KPER)
+      CLOSEZERO = 1.0D-09
+      SURFDPTH = DBLE(SURFDEPTH)
 C
 C1------SET IBD=1 IF BUDGET TERMS SHOULD BE SAVED ON DISK.
       ZERO = 0.0
@@ -1919,11 +1846,11 @@ C1A-----Set Lake budget terms for GSFLOW to zero.
       TOTSURFIN_LAK = 0.0
       TOTSURFOT_LAK = 0.0
 Cdep  initialize CONDMX, BOTLKUP, AND BOTLKDN TO ZERO. 3/3/2009
-      FLOBO1 = 0.0D0
       FLOBO2 = 0.0D0
       CONDMX = 0.0D0
       BOTLKUP = 0.0D0
       BOTLKDN = 0.0D0
+      L1 = 0
 Cdep  initialize SURFDPTH TO 1.0D0 3/3/2009
       SURFDPTH = DBLE(SURFDEPTH)
 C
@@ -1964,12 +1891,14 @@ Cdep      for gage package
 100     CONTINUE
 C2A------SUM UP INFLOWS FROM INFLOWING STREAM REACHES.
 Cdep   removed delta from computation of SURFIN
-      DO 200 LK=1,NLAKES
-         DO 200 ITRIB=1,NTRB
-            INODE=ITRB(LK,ITRIB)
-            IF (INODE.LE.0) GO TO 200
-            SURFIN(LK)=SURFIN(LK)+STRIN(INODE)
-200   CONTINUE
+      IF (IUNITSFR.GT.0) THEN
+        DO 200 LK=1,NLAKES
+           DO 200 ITRIB=1,NTRB
+              INODE=ITRB(LK,ITRIB)
+              IF (INODE.LE.0) GO TO 200
+              SURFIN(LK)=SURFIN(LK)+STRIN(INODE)
+200     CONTINUE
+      END IF
 C
 C2B------SET DOUBLE PRECISION THET1 TO THETA AND IF LESS THAN
 C          0.5, SET THET1 TO 0.0D0 (EXPLICIT LAKE STAGE).
@@ -1978,12 +1907,12 @@ C          0.5, SET THET1 TO 0.0D0 (EXPLICIT LAKE STAGE).
       IF(THET1-0.5.LT.-CLOSEZERO) THET1=0.0D0
 C2C------INITIALIZE SUMMATION PARAMETERS.
           DO LAKE = 1,NLAKES
-            SURFOT(LAKE)=SURFOT(LAKE)
             SUMCNN(LAKE) = ZERO
             SUMCHN(LAKE) = ZERO
             EVAP(LAKE)=ZERO
             PRECIP(LAKE)=ZERO
             SEEP(LAKE)=ZERO
+            SEEPUZ(LAKE)=ZERO
             VOL(LAKE)=ZERO
             SURFA(LAKE)=ZERO
             GWIN(LAKE)=ZERO
@@ -2020,7 +1949,11 @@ C         LIMITED TO AVAILABLE WATER IN LAKE.
 C
 C4------DETERMINE LAKE AND NODAL LAYER,ROW,COLUMN NUMBER.
              LAKE=ILAKE(4,L)
-             iuzflg = 0
+C
+C5-------SET STGOLD TO STGNEW FOR STEADY STATE SIMULATIONS.
+C          COMPUTE STGON AS A FRACTION OF STGOLD AND STGNEW.
+             IF(ISS.EQ.1 ) STGOLD(LAKE)=STGNEW(LAKE)
+             STGON = (1.0D0-THET1)*STGOLD(LAKE) + THET1*STGNEW(LAKE)
              ITYPE = (ILAKE(5,L)+1)/2
              IF(ITYPE.EQ.3) ITYPE=0
              AREA = DELR(IC)*DELC(IR)
@@ -2032,185 +1965,48 @@ C4------DETERMINE LAKE AND NODAL LAYER,ROW,COLUMN NUMBER.
              BOTCL = BOTM(IC,IR,LBOTM(IL))
              IF(IL.EQ.NLAY.AND.CNDFCT(L).EQ.0.0) BOTLK = BOTCL
              RAIN = PRCPLK(LAKE)
-             EV = EVAPLK(LAKE)
+!             EV = EVAPLK(LAKE)
 C
-C5------CONDUCTANCE FACTOR NEEDED FOR SEEPAGE CALCULATIONS.
+C5B------CONDUCTANCE FACTOR NEEDED FOR SEEPAGE CALCULATIONS.
 C         FLOB01 USED TO CALCULATE SEEPAGE WITH STGOLD.
 C         FLOBO2 USED TO CALCULATE SEEPAGE WITH STGNEW.
 C         FLOBOT IS A FRACTION OF BOTH FLOBO1 AND FLOBO2 AND 
 C           IS DEPENDENT ON VALUE OF THET1.
+             CONDUC=CNDFCT(L) 
              FLOBOT = 0.0D0
-             FLOBO1 = 0.0D0
-             FLOBO2 = 0.0D0
-             FLOTOUZF = 0.0D0
-             CONDUC=CNDFCT(L)
+             FLOBO3 = 0.0D0
+             FLOTOUZF = 0.0D0 
+             IL1 = IL
+             DO WHILE (IL1 .LE. NLAY)
+               IF( IBOUND(IC,IR,IL1).GT.0 ) THEN 
+                 EXIT
+               ELSE
+                 IL1 = IL1 + 1
+               END IF
+             END DO
+             IF ( IL1.GT.NLAY ) IL1 = NLAY 
+             IF( IBOUND(IC,IR,IL1).LE.0 ) THEN
+ !  Commented next line out 12/27/10
+ !              IF ( CONDUC.GT.CLOSEZERO )WRITE(IOUT,506) L,IC,IR,IL
+               CONDUC = 0.0
+ ! 506          FORMAT(1X,'ERROR - NO AQUIFER UNDER LAKE CELL ',4I5)
+             END IF
              IF(CONDUC.GT.0.0) THEN
                H=HNEW(IC,IR,IL)
 C
-C5B------SET STGOLD TO STGNEW FOR STEADY STATE SIMULATIONS.
-C          COMPUTE STGON AS A FRACTION OF STGOLD AND STGNEW.
-               IF(ISS.EQ.1 ) STGOLD(LAKE)=STGNEW(LAKE)
-               STGON = (1.0D0-THET1)*STGOLD(LAKE) + THET1*STGNEW(LAKE)
+C5C------DETERMINE UPPERMOST ACTIVE CELL IF NOT CELL(IL)
 C
-C6------COMPUTE SEEPAGE INTO OR OUT OF A LAKE BED NODE WHEN TYPE IS 0.
-                IF (ITYPE.EQ.0) THEN 
-                  IL1 = IL
-                  IF( IBOUND(IC,IR,IL).LE.0 ) THEN
-                    ICHECK = 0
-                    DO LI=IL,NLAY
-                      IF( IBOUND(IC,IR,LI).GT.0 ) ICHECK = 1
-                    END DO
-                    IF ( ICHECK.EQ.0 ) THEN
-                      WRITE(IOUT,506) L,IC,IR,IL
-  506             FORMAT(1X,'ERROR - NO AQUIFER UNDER LAKE CELL ',4I5)
-                    END IF
-                    IF( LI.LE.NLAY ) THEN
-                      IL1 = LI
-                    ELSE
-                      IL1 = NLAY
-                    END IF
-                    H = BOTLK
-                  END IF
-C
-C6B------RAMP CONDUCTANCE ACROSS HORIZONTAL CELL FACE WHEN
-C          LAKE STAGE AND GROUNDWATER HEAD NEAR LAKEBED.   
-                  BOTLKUP = BOTLK + SURFDPTH
-                  BOTLKDN = BOTLK
-                  CONDMX = CONDUC
-                  IF(SURFDPTH.GT.CLOSEZERO) THEN
-                    RAMPGW = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-H)
-                    IF ( RAMPGW-CONDMX.GT.0.0D0 ) RAMPGW = CONDMX   
-                    IF ( RAMPGW.LE.0.0D0 ) RAMPGW = 0.0D0 
-                    RAMPSTGO = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-STGOLD(LAKE))
-                    IF ( RAMPSTGO-CONDMX.GT.0.0D0 ) RAMPSTGO = CONDMX   
-                    IF ( RAMPSTGO.LE.0.0D0 ) RAMPSTGO = 0.0D0
-                    RAMPSTGN = CONDMX-(CONDMX/SURFDPTH)*
-     +                           (BOTLKUP-STGNEW(LAKE))      
-                    IF ( RAMPSTGN-CONDMX.GT.0.0D0 ) RAMPSTGN = CONDMX   
-                    IF ( RAMPSTGN.LE.0.0D0 ) RAMPSTGN = 0.0D0
-                  ELSE
-                    RAMPGW=CONDMX
-                    RAMPSTGO=CONDMX
-                    RAMPSTGN=CONDMX
-                  END IF
-                  IF( H-BOTLKDN.GT.CLOSEZERO ) THEN
-                    HTEMP = H
-                  ELSE
-                    HTEMP=BOTLKDN
-                  END IF
-C
-C6C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1.
-                  CONDUC=0.5*(RAMPGW+RAMPSTGO)
-                  IF( STGOLD(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
-                      FLOBO1=CONDUC*(STGOLD(LAKE)-HTEMP)
-                  ELSE
-                      FLOBO1=CONDUC*(BOTLKDN-HTEMP)
-                  END IF 
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF (H-BOTLK.LT.-0.5*SURFDEP) THEN
-                        IF ( VKS(IC,IR)*AREA-FLOBO1.LT.CLOSEZERO )
-     +                          THEN
-                           FLOBO1 = VKS(IC,IR)*AREA
-                         END IF
-                       END IF
-                    END IF
-                  END IF
-C
-C6D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2.
-                  CONDUC=0.5*(RAMPGW+RAMPSTGN)
-                  IF( STGNEW(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
-                    FLOBO2 = CONDUC*(STGNEW(LAKE)-HTEMP)       
-                  ELSE
-                    FLOBO2 = CONDUC*(BOTLKDN-HTEMP)
-                  END IF
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF ( H-BOTLK.LT.-0.5*SURFDEP ) THEN
-                        IF ( VKS(IC,IR)*AREA-FLOBO1.LT.CLOSEZERO )
-     +                           THEN
-                          FLOBO2 = VKS(IC,IR)*AREA
-                        END IF
-                      END IF
-                    END IF
-                  END IF
-C
-C6E------SET FLOBOT AS A FRACTION OF FLOBO1 AND FLOBO2.
-                  FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1  
-                  IF ( IUNITUZF.GT.0 ) THEN
-                    IF ( IUZFBND(IC,IR).GT.0 )THEN
-                      IF ( H-BOTLK.LT.-0.5*SURFDEP ) THEN
-                        IF ( FLOBOT/AREA.GT.VKS(IC,IR) )
-     +                  FLOBOT = VKS(IC,IR)*AREA
-                        FLOTOUZF = FLOBOT
-                        FLOBOT = 0.0D0
-                        CONDUC = FLOTOUZF/(STGNEW(LAKE)-BOTLK)
-                        FINF(IC,IR)=FLOTOUZF/AREA
-                      END IF
-                    END IF
-                  END IF
-C
-C7------COMPUTE SEEPAGE INTO OR OUT OF A LAKE WALL NODE 
-C         WHEN ITYPE=1 OR 2.           
-                ELSE IF (ITYPE.EQ.1.OR.ITYPE.EQ.2) THEN
-                  IF(IBOUND(IC,IR,IL).GT.0) THEN 
-                    HD = H
-                    IF(H.GT.BOTM(IC,IR,LBOTM(IL)-1))
-     1                                   HD = BOTM(IC,IR,LBOTM(IL)-1)
-C
-C7B------CONDUCTANCE ACROSS VERTICAL CELL FACE DEPENDENT ON 
-C          SATURATED THICKNESS.
-                    THCK = HD - BOTCL
-                    IF(THCK.LE.0.0) THCK = 0.0
-                    CONDUC = CONDUC*THCK 
-                    IF ( H.LT.BOTM(IC,IR,LBOTM(IL)))
-     +                    H = BOTM(IC,IR,LBOTM(IL))
-C
-C7C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1.  
-                    IF(STGOLD(LAKE)-BOTCL.GT.CLOSEZERO) THEN
-                      FLOBO1 = CONDUC*(STGOLD(LAKE)-H)  
-                      H1 = H
-                    ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
-                      FLOBO1 = CONDUC*(BOTCL-H)  
-                    END IF
-C
-C7D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2. 
-                    IF( STGNEW(LAKE)-BOTCL.GT.CLOSEZERO )THEN
-                      FLOBO2 = CONDUC*(STGNEW(LAKE)-H)
-                    ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
-                      FLOBO2 = CONDUC*(BOTCL-H)
-                    END IF
-C
-C7E------SET FLOBOT AS A FRACTION OF FLOBO1 AND FLOBO2.        
-                    FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
-                    SUMCNN(LAKE) = SUMCNN(LAKE) + CONDUC
-                    H1 = H
-                  END IF
-                END IF
-C
-C8-------COMPUTE FLWIN WHEN II IN II LOOP IS 1.
-               IF ( II==1 ) THEN
-                  IF ( FLOBOT.LT.0.0D0 ) FLWIN(LAKE) = 
-     +                 FLWIN(LAKE) - FLOBOT
-               END IF
-C
-C8B------COMPUTE FLWIN WHEN II IN II LOOP IS 2. LIMIT FLOBOT TO 
-C         AVAILABLE WATER IN LAKE (INCLUDES LAKE STORAGE).           
-               IF ( II==2 ) THEN
-                 IF ( FLOBOT>=DBLE(FLWIN(LAKE)) ) THEN
-                   FLOBOT=FLWIN(LAKE)
-                   FLWIN(LAKE) = 0.0
-                   INOFLO = 1
-                 ELSE IF ( FLOBOT.GT.CLOSEZERO )THEN
-                   FLWIN(LAKE) = FLWIN(LAKE) - FLOBOT
-                 END IF
-               END IF
+               CALL GET_FLOBOT(IC, IR, IL1, ITYPE, INOFLO,CONDUC,
+     1                FLOBOT,FLOBO3,FLOTOUZF,DLSTG,CLOSEZERO,H,
+     2                THET1,ISS,LAKE,II,SURFDPTH,AREA,IUNITUZF,
+     3                BOTLK,BOTCL,L1)
 C
 C9-------SET RATE TO FLOBOT AND SET FLOB(L) TO FLOBOT WHEN 
 C          SOLUTE TRANSPORT IS ACTIVE. 
                IF ( II==2 ) THEN
+                 SEEP(LAKE)=SEEP(LAKE)-FLOBOT
+! Save seepage to UZF for writing Lake-to-UZF in GAG Package.
+                 SEEPUZ(LAKE)=SEEPUZ(LAKE)+FLOTOUZF 
                  RATE=FLOBOT    
                  IF (IUNITGWT.GT.0) FLOB(L)=FLOBOT          
                  IF (ILKCB.LT.0.AND.ICBCFL.NE.0) WRITE(IOUT,880)
@@ -2220,7 +2016,7 @@ C          SOLUTE TRANSPORT IS ACTIVE.
      2            G15.7)
 C
 C10------ADD RATE TO BUFFER.
-                 BUFF(IC,IR,IL)=BUFF(IC,IR,IL)+RATE
+                 BUFF(IC,IR,IL1)=BUFF(IC,IR,IL1)+RATE
 C
 C10B-----CHECK IF RATE IS DISCHARGING FROM AQUIFER (NEGATIVE RATE).
 Cdep            IF (RATE) 885,899,890
@@ -2244,7 +2040,7 @@ C11-------IF SAVING COMPACT BUDGET, WRITE FLOW FOR ONE LAKE FACE.
 899              IF(IBD.EQ.2) THEN
                    FACE(1)=ILAKE(5,L)
                    R=RATE
-                   CALL UBDSVB(ILKCB,NCOL,NROW,IC,IR,IL,R,FACE(1),1,
+                   CALL UBDSVB(ILKCB,NCOL,NROW,IC,IR,IL1,R,FACE(1),1,
      1                 NAUX,1,IBOUND,NLAY)
                  END IF
                END IF
@@ -2255,7 +2051,7 @@ C
 C12------COMPUTE EVAPORATION AND PRECIPITATION USING STGOLD AND 
 C          ADD PRECIPITATION TO FLWIN.
          DO LL = 1,NLAKES
-           SURFA(LL)=FINTERP(STGOLD(LL),LL)
+           SURFA(LL)=FINTERP(STGNEW(LL),LL)
            EVAP(LL) = EVAPLK(LL)*SURFA(LL)
            PRECIP(LL) = PRCPLK(LL)*SURFA(LL)
            FLWIN(LL) = FLWIN(LL) + PRECIP(LL)
@@ -2270,10 +2066,7 @@ C           INFLOW (INCLUDING AVAILABLE LAKE STORAGE).
            END IF
 C
 C14------LIMIT EVAPORATION TO LAKE INFLOW WHEN EVAPORATION EXCEEDS
-C          INFLOW (INCLUDING AVAILABLE LAKE STROAGE AND WITHDRAWALS).
-           IF(KSTP.EQ.100) THEN
-             FLWIN(LL) = FLWIN(LL) - WITHDRW(LL)
-           END IF           
+C          INFLOW (INCLUDING AVAILABLE LAKE STROAGE AND WITHDRAWALS).          
            IF ( EVAP(LL)-DBLE(FLWIN(LL)).GT.1.0E-04 ) THEN
              EVAP(LL)=FLWIN(LL)
              FLWIN(LL) = 0.0D0
@@ -2322,7 +2115,7 @@ C          NEW VOLUME.
          IF(ISS.EQ.0)THEN
            VOL2 = VOLOLDD(LAKE)+(PRECIP(LAKE)-EVAP(LAKE)
      +                -WDRAW+RUNFD+SURFIN(LAKE)-SURFOT(LAKE)+GWIN(LAKE)
-     +                -GWOUT(LAKE)-SEEP(LAKE))*DELT
+     +                -GWOUT(LAKE))*DELT
           IF(VOL2.LE.0.0) VOL2=0.0
           VOL(LAKE) = VOL2
           STGNEW(LAKE)= STGTERP(VOL2,LAKE)
@@ -2338,7 +2131,7 @@ C
 C18C-----STGON IS FRACTION OF STGOLD AND STGNEW AND SURFACE AREA
 C          IS BASED ON STGOLD.
          STGON = (1.0D0-THET1)*STGOLD(LAKE) + THET1*STGNEW(LAKE)
-         SURFA(LAKE)=FINTERP(STGOLD(LAKE),LAKE)
+         SURFA(LAKE)=FINTERP(STGNEW(LAKE),LAKE)
          IF(STGNEW(LAKE)-BOTTMS(LAKE).LT.CLOSEZERO) GO TO 1110
 C
 C19------COMPUTE LAKE BUDGET VOLUMES FOR GSFLOW CSV FILE.
@@ -2374,7 +2167,7 @@ C20------WRITE WHEN LAKE VOLUME HAS INITIALLY GONE DRY.
 C
 C21----WRITE WHEN LAKE CONTINUES TO BE DRY.
  1110 AVHD = ZERO
-      BOTARE = ZERO
+!      BOTARE = ZERO
       WRITE(IOUT,1112) LAKE
  1112 FORMAT(1X,'..........LAKE',I3,' IS DRY..........') 
       IF(NLAY.EQ.1) GO TO 1000
@@ -2822,7 +2615,7 @@ C27-----WRITE LAKE BUDGETS FOR A TIMES STEP (VOLUMES PER TIME STEP).
  1061       DO 1100 NN=1,NLAKES
               PPTIN=PRECIP(NN)*DELT
               EOUT=EVAP(NN)*DELT
-              SEEPUZF = SEEP(NN)*DELT                                   
+              SEEPUZF = SEEPUZ(NN)*DELT
               IF(RNF(NN).GE.ZERO) RUNF = RNF(NN)
               IF(RNF(NN).LT.ZERO) RUNF =-RNF(NN)*PRCPLK(NN)*BGAREA(NN)
               RUNFD = RUNF*DELT
@@ -2887,7 +2680,7 @@ C28-----DETERMINE LAKE BUDGET ERROR FOR A TIME STEP.
             DO 1101 NN=1,NLAKES
               PPTIN=PRECIP(NN)*DELT
               EOUT=EVAP(NN)*DELT
-              SEEPUZF = SEEP(NN)*DELT
+              SEEPUZF = SEEPUZ(NN)*DELT
               IF(RNF(NN).GE.ZERO) RUNF = RNF(NN)
               IF(RNF(NN).LT.ZERO) RUNF =-RNF(NN)*PRCPLK(NN)*BGAREA(NN)
               RUNFD = RUNF*DELT
@@ -2917,12 +2710,13 @@ C-LFK      Calculate accuracy of lake budget FOR TIME STEP
                  ELSE 
                    DENOM=ABS(DELVOL(NN))
                  END IF
-              IF (DENOM.NE.0.0) THEN
+              IF (abs(DENOM).GT.Closezero) THEN
                  TSLAKERR(NN)=(CUMLKIN(NN)-CUMLKOUT(NN)-DELVOL(NN)
      1                       +FLXINL(NN))*100./DENOM
               ELSE 
 C            Note: if both ins & outs = 0.0, err set = 1e20
-                 TSLAKERR(NN)=1.0E20
+!                 TSLAKERR(NN)=1.0E20
+                TSLAKERR(NN)=0.0
                END IF
               IF(LWRT.LE.0.AND.ICBCFL.GT.0)THEN
                 IF(IUNITUZF.EQ.0) THEN
@@ -2971,7 +2765,8 @@ C-LFK      Calculate accuracy of CUMULATIVE lake budget
      1                       +CUMFLX(NN))*100./DENOM
               ELSE 
 C     Note: if both ins & outs = 0.0, err set = 1e20
-                 CMLAKERR(NN)=1.0E20
+!                 CMLAKERR(NN)=1.0E20
+                CMLAKERR(NN)=0.0
               END IF
               IF(LWRT.LE.0.AND.ICBCFL.GT.0) THEN
                 IF(ISS.NE.0) THEN
@@ -3266,7 +3061,7 @@ C     ------------------------------------------------------------------
 C     SPECIFICATIONS:
 C     ------------------------------------------------------------------
       USE GWFLAKMODULE, ONLY: LKNODE, BEDLAK, LKARR1, ILAKE, CNDFCT
-      USE GLOBAL,       ONLY: NLAY, IOUT, DELR, DELC, LAYHDT
+      USE GLOBAL,       ONLY: NLAY, IOUT, DELR, DELC, LAYHDT,NCOL,NROW
       USE GWFBCFMODULE, ONLY: IWDFLG, HY, CVWD, TRPY
 C
       WRITE(IOUT,108)
@@ -3428,7 +3223,7 @@ c   skip if zero vk
         CAQ=VK*DELR(I)*DELC(J)/((TTOP-BBOT)*0.5)
         IF(LAYCBD(K-1).GT.0) THEN
 c   skip if zero vkcb
-          IF(VKCB(I,J,LAYCBD(K)).LE.0.0) GO TO 350
+          IF(VKCB(I,J,LAYCBD(K-1)).LE.0.0) GO TO 350
           BBOT=BOTM(I,J,LBOTM(K)-1)
           TTOP=BOTM(I,J,LBOTM(K-1))
           CCB=VKCB(I,J,LAYCBD(K-1))*DELR(I)*DELC(J)/(TTOP-BBOT)
@@ -3555,8 +3350,11 @@ C          OF LAKE STAGE TO CACULATE LAKE AREA.
 C         ADDED 5/16/2006-- changed 12/2007 from "DOUBLE PRECISION FUNCTION"
 C          to "FUNCTION"
       USE GWFLAKMODULE, ONLY: AREATABLE, DEPTHTABLE
-      DOUBLE PRECISION STAGE
-      TOLF2=1.0E-4
+      IMPLICIT NONE
+      DOUBLE PRECISION STAGE, AREA, TOLF2, FOLD
+      DOUBLE PRECISION a1, a2, d1, d2
+      INTEGER LN, IFLG, I
+      TOLF2=1.0E-7
       IF (STAGE.GT.DEPTHTABLE(151,LN))THEN
         FINTERP =  AREATABLE(151,LN) 
         RETURN
@@ -3564,17 +3362,16 @@ C          to "FUNCTION"
       IFLG = 0
       I = 1
       DO WHILE ( IFLG.EQ.0 )
-        FOLD=ABS(STAGE-DEPTHTABLE(I,LN))     
+        a1 = AREATABLE(I,LN)
+        a2 = AREATABLE(I+1,LN)
+        d1 = DEPTHTABLE(I,LN)
+        d2 = DEPTHTABLE(I+1,LN)
+        FOLD=ABS(STAGE-d1)     
         IF (FOLD .LE. TOLF2) THEN  
           AREA=AREATABLE(I,LN)
           IFLG = 1
-        ELSEIF (STAGE.GT.DEPTHTABLE(I,LN) .AND. STAGE.LT.
-     1          DEPTHTABLE(I+1,LN))THEN
-          AREA=((AREATABLE(I+1,LN)-AREATABLE(I,LN))/
-     1         (DEPTHTABLE(I+1,LN)- DEPTHTABLE(I,LN)))*
-     2         STAGE+AREATABLE(I+1,LN)-((AREATABLE(I+1,LN)-
-     3         AREATABLE(I,LN))/(DEPTHTABLE(I+1,LN)-
-     4         DEPTHTABLE(I,LN)))*DEPTHTABLE(I+1,LN)                 
+        ELSEIF (STAGE.GT.d1 .AND. STAGE.LT.d2)THEN
+          AREA=((a2-a1)/(d2-d1))*STAGE+a2-((a2-a1)/(d2-d1))*d2
           IFLG = 1
         END IF
         I = I + 1
@@ -3589,7 +3386,7 @@ C     FUNCTION LINEARLY INTERPOLATES BETWEEN TWO VALUES
 C          OF LAKE VOLUME TO CACULATE LAKE AREA.
       USE GWFLAKMODULE, ONLY: AREATABLE, VOLUMETABLE
       DOUBLE PRECISION VOLUME
-      TOLF2=1.0E-4
+      TOLF2=1.0E-7
       IF (VOLUME.GT.VOLUMETABLE(151,LN))THEN
         SURFTERP =  AREATABLE(151,LN) 
         RETURN
@@ -3623,8 +3420,10 @@ C     used in solving lake stage in the FORMULATE SUBROUTINE (LAK7FM).
 C     FUNCTION LINEARLY INTERPOLATES BETWEEN TWO VALUES
 C          OF LAKE STAGE TO CACULATE LAKE VOLUME.
       USE GWFLAKMODULE, ONLY: VOLUMETABLE, DEPTHTABLE, AREATABLE
-      DOUBLE PRECISION STAGE, VOLUME
-      TOLF2=1.0E-4
+      IMPLICIT NONE
+      INTEGER LN, IFLG, I
+      DOUBLE PRECISION STAGE, VOLUME, TOLF2, FOLD
+      TOLF2=1.0E-7
       IF (STAGE.GT.DEPTHTABLE(151,LN))THEN
  ! bug 5/4/09 changed FINTERP TO VOLUME
         VOLTERP =  VOLUMETABLE(151,LN)+(STAGE-DEPTHTABLE(151,LN))*
@@ -3651,6 +3450,7 @@ C          OF LAKE STAGE TO CACULATE LAKE VOLUME.
         IF( I.GT.150 ) IFLG = 1 
       END DO
       VOLTERP = VOLUME
+      IF ( VOLTERP.LT.TOLF2 ) VOLTERP = TOLF2
       RETURN
       END FUNCTION VOLTERP
 !     Interpolate lake STAGE as a function of lake VOLUME
@@ -3660,7 +3460,7 @@ C     FUNCTION LINEARLY INTERPOLATES BETWEEN TWO VALUES
 C          OF LAKE VOLUME TO CACULATE LAKE STAGE.
       USE GWFLAKMODULE, ONLY: VOLUMETABLE, DEPTHTABLE,AREATABLE
       DOUBLE PRECISION VOLUME, STAGE
-      TOLF2=1.0E-4
+      TOLF2=1.0E-7
       IF (VOLUME.GT.VOLUMETABLE(151,LN))THEN
         STGTERP =  DEPTHTABLE(151,LN)+(VOLUME-VOLUMETABLE(151,LN))/
      +             AREATABLE(151,LN) 
@@ -3694,8 +3494,8 @@ C          OF LAKE STAGE TO CACULATE LAKE OUTFLOW DERIVATIVE.
 C         ADDED 5/16/2006-- changed 12/2007 from "DOUBLE PRECISION FUNCTION"
 C          to "FUNCTION"
       USE GWFSFRMODULE, ONLY: DLKOTFLW, DLKSTAGE
-      DOUBLE PRECISION STAGE, DEROTFLW
-      TOLF2=1.0E-4
+      DOUBLE PRECISION STAGE, DEROTFLW, FOLD
+      TOLF2=1.0E-7
       IF (STAGE.GT.DLKSTAGE(200,LSEG))THEN
         DERIVTERP =  DLKOTFLW(200,LSEG)
         RETURN
@@ -3732,8 +3532,8 @@ C          OF LAKE OUTFLOW STORED IN SLKOTFLW ARRAY.
 C         ADDED 5/16/2006-- changed 12/2007 from "DOUBLE PRECISION FUNCTION"
 C          to "FUNCTION"
       USE GWFSFRMODULE, ONLY: SLKOTFLW, DLKSTAGE
-      DOUBLE PRECISION STAGE, OUTFLOW
-      TOLF2=1.0E-4
+      DOUBLE PRECISION STAGE, OUTFLOW, FOLD
+      TOLF2=1.0E-9
       IF (STAGE.GT.DLKSTAGE(200,LSEG))THEN
         OUTFLWTERP =  SLKOTFLW(200,LSEG) 
         RETURN
@@ -3741,7 +3541,7 @@ C          to "FUNCTION"
       IFLG = 0
       I = 1
       DO WHILE ( IFLG.EQ.0 )
-        FOLD=ABS(STAGE-DLKSTAGE(I,LSEG))     
+        FOLD=DABS(STAGE-DLKSTAGE(I,LSEG))     
         IF (FOLD .LE. TOLF2) THEN
           OUTFLOW=SLKOTFLW(I,LSEG)
           IFLG = 1
@@ -3762,7 +3562,267 @@ C          to "FUNCTION"
       END DO
       OUTFLWTERP = OUTFLOW
       RETURN
-      END FUNCTION OUTFLWTERP       
+      END FUNCTION OUTFLWTERP    
+C
+C------FUNCTION FXLKOT_TERP FOR SMOOTHING SPECIFIED LAKE OUTFLOWS TO STREAMS.
+C
+      DOUBLE PRECISION FUNCTION FXLKOT_TERP(DSTAGE,Botlake,Splakout,dy)
+      IMPLICIT NONE
+      DOUBLE PRECISION DSTAGE,Botlake,Splakout, s, aa, ad, b, x, y, dy
+      FXLKOT_TERP = 0.0D0
+      s = 2.0
+      x = DSTAGE-Botlake
+      aa = -1.0d0/(s**2.0d0)
+      ad = -2.0D0/(s**2.0d0)
+      b = 2.0d0/s
+      y = aa*x**2.0d0 + b*x
+      dy = (ad*x + b)*Splakout
+      IF ( x.LE.0.0 ) THEN
+        y = 0.0D0
+        dy = 0.0D0
+      ELSE IF ( x-s.GT.-1.0e-14 ) THEN
+        y = 1.0D0
+        dy = 0.0D0
+      END IF
+      FXLKOT_TERP = y*Splakout
+      END FUNCTION FXLKOT_TERP
+C
+      SUBROUTINE GET_FLOBOT(IC, IR, IL, ITYPE, INOFLO,CONDUC,
+     1                FLOBOT,FLOBO3,FLOTOUZF,DLSTG,CLOSEZERO,H,
+     2                THET1,ISS,LAKE,II,SURFDPTH,AREA,IUNITUZF,
+     3                BOTLK,BOTCL,L1)
+C
+C     ******************************************************************
+C     CALCULATE SEEPAGE BETWEEN LAKE AND GW CELLS
+C     ******************************************************************
+C
+      USE GWFLAKMODULE
+      USE GLOBAL,       ONLY: IBOUND, IOUT, LBOTM, BOTM, NLAY
+      USE GWFUZFMODULE, ONLY: IUZFBND,FINF,VKS
+      IMPLICIT NONE
+C     ------------------------------------------------------------------
+C     SPECIFICATIONS:
+C     ------------------------------------------------------------------
+C     FUNCTIONS
+C     -----------------------------------------------------------------
+C     -----------------------------------------------------------------
+C     ARGUMENTS
+      DOUBLE PRECISION FLOBO3,FLOBOT,CONDUC,H,THET1,CLOSEZERO,DLSTG,
+     1                 SURFDPTH,AREA,BOTLK,BOTCL,HH 
+      INTEGER ISS, LAKE, II, IC, IR, IL, ITYPE, IUNITUZF, L1  
+C     -----------------------------------------------------------------    
+      INTEGER ICHECK, LI, INOFLO
+      DOUBLE PRECISION FLOBO1,FLOBO2,CONDMX,BOTLKUP,
+     1                 BOTLKDN,FLOTOUZF,RAMPGW,RAMPSTGO,RAMPSTGN,
+     2                 RAMPSTGON,HTEMP,HD,THCK,RAMPUP
+C
+C5C-----INITIALIZE GROUNDWATER SEEPAGE VARIABLES AND CONDUCTANCE FACTOR.
+      FLOBO1 = 0.0D0
+      FLOBO2 = 0.0D0
+C
+C6------COMPUTE SEEPAGE INTO OR OUT OF A LAKE BED NODE WHEN ITYPE=0.
+C       HEAD CANNOT FALL BELOW LAKE BOTTOM
+        IF (ITYPE.EQ.0) THEN 
+C
+C6B------RAMP CONDUCTANCE ACROSS HORIZONTAL CELL FACE WHEN
+C          LAKE STAGE AND GROUNDWATER HEAD NEAR LAKEBED.    
+          BOTLKUP = BOTLK + SURFDPTH
+          BOTLKDN = BOTLK
+          CONDMX = CONDUC
+          HH = H
+          IF ( HH.LT.BOTLKDN ) THEN
+            HH = BOTLKDN
+            INOFLO = 1
+          END IF
+          IF(SURFDPTH.GT.CLOSEZERO) THEN
+            RAMPGW = CONDMX-(CONDMX/SURFDPTH)*
+     +                           (BOTLKUP-HH) 
+            IF ( RAMPGW-CONDMX.GT.0.0D0 ) RAMPGW = CONDMX  
+            IF ( RAMPGW.LE.0.0D0 ) RAMPGW = 0.0D0 
+            RAMPSTGO = CONDMX-(CONDMX/SURFDPTH)*
+     +                           (BOTLKUP-STGOLD(LAKE))
+            IF ( RAMPSTGO-CONDMX.GT.0.0D0 ) RAMPSTGO = CONDMX   
+            IF ( RAMPSTGO.LE.0.0D0 ) RAMPSTGO = 0.0D0
+            RAMPSTGN = CONDMX-(CONDMX/SURFDPTH)*
+     +                           (BOTLKUP-STGNEW(LAKE))      
+            IF ( RAMPSTGN-CONDMX.GT.0.0D0 ) RAMPSTGN = CONDMX   
+            IF ( RAMPSTGN.LE.0.0D0 ) RAMPSTGN = 0.0D0
+          ELSE
+            RAMPGW=CONDMX
+            RAMPSTGO=CONDMX
+            RAMPSTGN=CONDMX
+          END IF
+          IF( HH-BOTLKDN.GT.CLOSEZERO ) THEN
+            HTEMP = HH
+          ELSE
+            HTEMP=BOTLKDN
+          END IF
+C
+C6C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1.
+C        USE UPSTREAM WEIGHTING
+          IF ( HH.LT.STGOLD(LAKE) ) THEN
+            RAMPUP = RAMPSTGO
+          ELSE
+            RAMPUP = RAMPGW
+          END IF
+          CONDUC = RAMPUP
+          IF( STGOLD(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
+            FLOBO1=CONDUC*(STGOLD(LAKE)-HTEMP)
+          ELSE
+            FLOBO1=CONDUC*(BOTLKDN-HTEMP)
+          END IF 
+          IF ( IUNITUZF.GT.0 ) THEN
+            IF ( IUZFBND(IC,IR).GT.0 )THEN
+              IF (HH-BOTLK.LT.-0.5*SURFDPTH) THEN
+                IF ( VKS(IC,IR)*AREA-FLOBO1.LT.CLOSEZERO )
+     +                          THEN
+                  FLOBO1 = VKS(IC,IR)*AREA
+                END IF
+              END IF
+            END IF
+          END IF
+C
+C6D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2 AND FLOBO3.
+C        USE UPSTREAM WEIGHTING
+          IF ( HH.LT.STGNEW(LAKE) ) THEN
+            RAMPUP = RAMPSTGN
+          ELSE
+            RAMPUP =  RAMPGW
+          END IF
+          CONDUC = RAMPUP
+          IF( STGNEW(LAKE)-BOTLKDN.GT.CLOSEZERO ) THEN
+            FLOBO2 = CONDUC*(STGNEW(LAKE)-HTEMP)       
+            FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-HTEMP)
+          ELSE
+            FLOBO2 = CONDUC*(BOTLKDN-HTEMP)
+            FLOBO3 = CONDUC*(BOTLKDN+DLSTG-HTEMP)
+          END IF
+          IF ( IUNITUZF.GT.0 ) THEN
+            IF ( IUZFBND(IC,IR).GT.0 )THEN
+              IF ( HH-BOTLK.LT.-0.5*SURFDPTH ) THEN
+                IF ( VKS(IC,IR)*AREA-FLOBO2.LT.CLOSEZERO )
+     +                           THEN
+                  FLOBO2 = VKS(IC,IR)*AREA
+                  FLOBO3 = VKS(IC,IR)*AREA
+                END IF
+              END IF
+            END IF
+          END IF
+C
+C6E------COMPUTE LAKE SEEPAGE (FLOBOT) AS A FRACTION OF FLOBO1 AND 
+C          FLOB02 AND FLOBO3 AS A FRACTION OF FLOBO1 AND FLOBO3.
+          FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
+          FLOBO3 = THET1*FLOBO3 + (1.0D0-THET1)*FLOBO1  
+!          CONDUC = THET1*RAMPSTGN + (1.0D0-THET1)*RAMPSTGO
+          IF ( IUNITUZF.GT.0 ) THEN
+            IF ( IUZFBND(IC,IR).GT.0 )THEN
+              IF ( HH-BOTLK.LT.-0.5*SURFDPTH ) THEN
+                IF ( FLOBOT/AREA.GT.VKS(IC,IR) ) THEN
+                  FLOBOT = VKS(IC,IR)*AREA
+                  FLOBO3 = FLOTOUZF
+                END IF
+                FLOTOUZF = FLOBOT 
+                FLOBOT = 0.0D0
+                CONDUC = FLOTOUZF/(STGNEW(LAKE)-BOTLK)
+                FINF(IC,IR)=FLOTOUZF/AREA
+              END IF
+            END IF
+          END IF        
+C
+C7------COMPUTE SEEPAGE INTO OR OUT OF A LAKE WALL NODE 
+C         WHEN ITYPE=1 OR 2.       
+        ELSE IF ( ITYPE.EQ.1.OR.ITYPE.EQ.2 ) THEN
+          IF( IBOUND(IC,IR,IL).GT.0 ) THEN 
+            HD = H
+            IF( H.GT.BOTM(IC,IR,LBOTM(IL)-1) )
+     1                         HD = BOTM(IC,IR,LBOTM(IL)-1)
+C
+C7B------CONDUCTANCE ACROSS VERTICAL CELL FACE DEPENDENT ON 
+C          SATURATED THICKNESS.
+            THCK = HD - BOTCL
+            IF( THCK.LE.0.0 ) THCK = 0.0
+            CONDUC = CONDUC*THCK 
+            IF ( H.LT.BOTM(IC,IR,LBOTM(IL)) )
+     +               H = BOTM(IC,IR,LBOTM(IL))
+C
+C7C------COMPUTE LAKE SEEPAGE FOR STGOLD USING FLOBO1. 
+            IF( STGOLD(LAKE)-BOTCL.GT.CLOSEZERO ) THEN
+              FLOBO1 = CONDUC*(STGOLD(LAKE)-H)  
+            ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
+              FLOBO1 = CONDUC*(BOTCL-H)  
+            END IF
+C
+C7D------COMPUTE LAKE SEEPAGE FOR STGNEW USING FLOBO2 AND FLOBO3.
+            IF( STGNEW(LAKE)-BOTCL.GT.CLOSEZERO )THEN
+              FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-H)
+              FLOBO2 = CONDUC*(STGNEW(LAKE)-H)                  
+            ELSE IF ( H-BOTCL.GT.CLOSEZERO ) THEN
+              FLOBO3 = CONDUC*(BOTCL+DLSTG-H)
+              FLOBO2 = CONDUC*(BOTCL-H)
+            ELSE IF ( STGNEW(LAKE)+DLSTG.GE.BOTCL )THEN
+              FLOBO3 = CONDUC*(STGNEW(LAKE)+DLSTG-H)
+            END IF 
+C
+C7E------COMPUTE LAKE SEEPAGE (FLOBOT) AS A FRACTION OF FLOBO1 AND 
+C         FLOB02 AND FLOBO3 AS A FRACTION OF FLOBO1 AND FLOBO3.       
+            FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
+            FLOBO3  = THET1*FLOBO3 + (1.0D0-THET1)*FLOBO1
+            SUMCNN(LAKE) = SUMCNN(LAKE) + CONDUC
+          END IF
+        END IF
+C
+C8-------SEEPAGE RATES ADDED TO MATRIX AND RESIDUAL TERMS.
+C8B------COMPUTE FLWITER AND FLWITER3 DURING FIRST LOOP THROUGH
+C          CALCULATIONS. NEGATIVE FLOBOT MEANS INTO LAKE
+        IF ( II==1 ) THEN
+          IF ( FLOBOT.LT.0.0D0 ) FLWITER(LAKE) = 
+     +             FLWITER(LAKE) - FLOBOT
+          IF ( FLOBO3.LT.0.0D0 ) FLWITER3(LAKE) =  
+     +             FLWITER3(LAKE) - FLOBO3
+        END IF
+C8C------COMPUTE FLWITER AND FLOWITER3 DURING SECOND LOOP THROUGH 
+C          CALCULATIONS.
+        IF ( II==2 ) THEN
+          IF ( FLOBOT>=FLWITER(LAKE) ) THEN
+            IF ( FLOBOT.GT.CLOSEZERO ) THEN
+!              FLOBO2=FLWITER(LAKE)
+!              FLOBOT = THET1*FLOBO2 + (1.0D0-THET1)*FLOBO1
+              FLOBOT = FLWITER(LAKE)
+              FLWITER(LAKE) = 0.0
+              INOFLO = 1
+            END IF
+          ELSE IF ( FLOBOT.GT.CLOSEZERO )THEN
+            FLWITER(LAKE) = FLWITER(LAKE) - FLOBOT
+          END IF
+          IF ( FLOTOUZF>=FLWITER(LAKE) ) THEN
+            IF ( FLOTOUZF.GT.CLOSEZERO ) THEN
+              FLOTOUZF=FLWITER(LAKE)
+ !             FLOTOUZF = THET1*FLOTOUZF + (1.0D0-THET1)*FLOBO1
+              FLWITER(LAKE) = 0.0
+              INOFLO = 1
+            END IF
+          ELSE IF ( FLOTOUZF.GT.CLOSEZERO )THEN
+            FLWITER(LAKE) = FLWITER(LAKE) - FLOTOUZF
+          END IF
+          IF ( FLOBO3>=FLWITER3(LAKE) ) THEN
+            IF ( FLOBO3.GT.CLOSEZERO ) THEN
+              FLOBO3=FLWITER3(LAKE)
+ !             FLOBO3  = THET1*FLOBO3 + (1.0D0-THET1)*FLOBO1
+              FLWITER3(LAKE) = 0.0
+              INOFLO = 1
+            END IF
+          ELSE IF ( FLOBO3.GT.CLOSEZERO )THEN
+            FLWITER3(LAKE) = FLWITER3(LAKE) - FLOBO3
+          END IF
+        END IF
+C
+C6E------COMPUTE LAKE SEEPAGE (FLOBOT) AS A FRACTION OF FLOBO1 AND 
+C          FLOB02 AND FLOBO3 AS A FRACTION OF FLOBO1 AND FLOBO3.   
+      RETURN
+      END SUBROUTINE GET_FLOBOT   
+C
+C   
+C
       SUBROUTINE GWF2LAK7DA(IUNITLAK, IGRID)
 Cdep  End of FUNCTIONS used for Newton method in 
 Cdep     FORMULATE SUBROUTINE (LAK7FM).
@@ -3785,6 +3845,8 @@ C
       IF ( IUNITLAK.LT.1 ) RETURN
 
       DEALLOCATE (GWFLAKDAT(IGRID)%ILKCB)
+      DEALLOCATE (GWFLAKDAT(IGRID)%LAKTAB)
+      DEALLOCATE (GWFLAKDAT(IGRID)%IRDTAB)
       DEALLOCATE (GWFLAKDAT(IGRID)%NSSITR)
 Cdep  deallocate SURFDEPTH 3/3/2009
       DEALLOCATE (GWFLAKDAT(IGRID)%SURFDEPTH)
@@ -3906,6 +3968,8 @@ C
       NLAKES=>GWFLAKDAT(IGRID)%NLAKES
       NLAKESAR=>GWFLAKDAT(IGRID)%NLAKESAR
       ILKCB=>GWFLAKDAT(IGRID)%ILKCB
+      LAKTAB=>GWFLAKDAT(IGRID)%LAKTAB
+      IRDTAB=>GWFLAKDAT(IGRID)%IRDTAB
       NSSITR=>GWFLAKDAT(IGRID)%NSSITR
       MXLKND=>GWFLAKDAT(IGRID)%MXLKND
       LKNODE=>GWFLAKDAT(IGRID)%LKNODE
@@ -4051,6 +4115,8 @@ C
       GWFLAKDAT(IGRID)%MXLKND=>MXLKND
       GWFLAKDAT(IGRID)%LKNODE=>LKNODE
       GWFLAKDAT(IGRID)%ICMX=>ICMX
+      GWFLAKDAT(IGRID)%LAKTAB=>LAKTAB
+      GWFLAKDAT(IGRID)%IRDTAB=>IRDTAB
       GWFLAKDAT(IGRID)%NCLS=>NCLS
       GWFLAKDAT(IGRID)%LWRT=>LWRT
       GWFLAKDAT(IGRID)%NDV=>NDV

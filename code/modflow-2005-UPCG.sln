@@ -1,21 +1,15 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "modflow-2005-UPCG", "modflow-2005-UPCG.vfproj", "{9C4A645D-4775-4FEB-96D7-F48208134CE3}"
 	ProjectSection(ProjectDependencies) = postProject
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C} = {A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}
 		{BEBECD66-BC97-4F2C-AFC7-533ED30ECDCD} = {BEBECD66-BC97-4F2C-AFC7-533ED30ECDCD}
 		{C4313670-ACAA-44E0-9172-0B9FFAE9BD28} = {C4313670-ACAA-44E0-9172-0B9FFAE9BD28}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gmg", "gmg.vcproj", "{BEBECD66-BC97-4F2C-AFC7-533ED30ECDCD}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gmg", "gmg.vcxproj", "{BEBECD66-BC97-4F2C-AFC7-533ED30ECDCD}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "upcgc", "upcgc.vcproj", "{C4313670-ACAA-44E0-9172-0B9FFAE9BD28}"
-	ProjectSection(ProjectDependencies) = postProject
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C} = {A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cuda_kernels", "cuda_kernels.vcproj", "{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "upcgc", "upcgc.vcxproj", "{C4313670-ACAA-44E0-9172-0B9FFAE9BD28}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +29,6 @@ Global
 		{C4313670-ACAA-44E0-9172-0B9FFAE9BD28}.Debug|x64.Build.0 = Debug|x64
 		{C4313670-ACAA-44E0-9172-0B9FFAE9BD28}.Release|x64.ActiveCfg = Release|x64
 		{C4313670-ACAA-44E0-9172-0B9FFAE9BD28}.Release|x64.Build.0 = Release|x64
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}.Debug|x64.ActiveCfg = Debug|x64
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}.Debug|x64.Build.0 = Debug|x64
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}.Release|x64.ActiveCfg = Release|x64
-		{A6EB2B64-C6A1-4136-A3E9-1E3B6A61A52C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -102,7 +102,7 @@ C6A-----READ PARAMETER WITHOUT INSTANCES
             CALL ULSTRD(NLST,RIVR,LSTBEG,NRIVVL,MXRIVR,1,IN,
      &            IOUT,'REACH NO.  LAYER   ROW   COL'//
      &            '     STAGE    STRESS FACTOR     BOTTOM EL.',
-     &            RIVAUX,5,NAUX,IFREFM,NCOL,NROW,NLAY,5,5,IPRRIV)
+     &            RIVAUX,20,NAUX,IFREFM,NCOL,NROW,NLAY,5,5,IPRRIV)
           ELSE
 C6B-----READ INSTANCES
             NINLST = NLST/NUMINST
@@ -210,6 +210,7 @@ C     SPECIFICATIONS:
 C     ------------------------------------------------------------------
       USE GLOBAL,       ONLY:IBOUND,HNEW,RHS,HCOF
       USE GWFRIVMODULE, ONLY:NRIVER,RIVR
+      DOUBLE PRECISION RRBOT
 C     ------------------------------------------------------------------
       CALL SGWF2RIV7PNT(IGRID)
 C

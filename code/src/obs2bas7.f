@@ -386,12 +386,16 @@ C2------IDRY = # OBS OMITTED; JDRY = # INTERPOLATIONS CHANGED
      &     (ITS.NE.NDER(4,N) .AND. ITS.NE.NDER(4,N)+1)) GO TO 30
         II = NDER(2,N)
         JJ = NDER(3,N)
-        IO = IOFF(N)
-        JO = JOFF(N)
+C  Moved the following to inside the DO 20 loop so updates of IOFF and
+C  JOFF by SOBS2BAS7HIB will be applied.
+C        IO = IOFF(N)
+C        JO = JOFF(N)
 C
 C4------CHECK FOR DRY OBSERVATIONS OR INTERPOLATIONS AFFECTED BY DRY
 C4------CELLS
         DO 20 M = 1, MM
+          IO = IOFF(N)
+          JO = JOFF(N)
           KK = K
           IF (K.LT.0) KK = MLAY(M,ML)
           IF (KK.EQ.0) GOTO 30
@@ -413,10 +417,15 @@ C5------CHECK TO SEE IF A CELL USED IN INTERPOLATION IS INACTIVE
             IF(M.GT.1) THEN
               IDRY = IDRY + 1
               IHOBWET(N)=-1
-              WRITE (IOUT,500) N, OBSNAM(N)
-  500 FORMAT (/,' HEAD OBS#',I5,', ID ',A,
-     &' OMITTED BECAUSE IBOUND=0 FOR CELL(S)',/,' REQUIRED FOR',
-     &' MULTILAYER INTERPOLATION (OBS2BAS7SE)')
+C              WRITE (IOUT,500) N, OBSNAM(N)
+C  500 FORMAT (/,' HEAD OBS#',I5,', ID ',A,
+C     &' OMITTED BECAUSE IBOUND=0 FOR CELL(S)',/,' REQUIRED FOR',
+C     &' MULTILAYER INTERPOLATION (OBS2BAS7SE)')
+              WRITE (IOUT,500) N, OBSNAM(N),KK 
+  500 FORMAT (/,' HEAD OBS#',I5,', ID ',A, 
+     &' OMITTED BECAUSE IBOUND=0 FOR CELL(S) IN MODEL LAYER',I10,/,
+     &' REQUIRED FOR MULTILAYER INTERPOLATION (OBS2BAS7SE)') 
+C
               GOTO 30
             ENDIF
             WRITE (IOUT,505) N, OBSNAM(N)

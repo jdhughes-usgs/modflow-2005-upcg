@@ -4,6 +4,8 @@
 /*
  *  Generic PCG:
  *
+ *    Starting value for cfac modified: R.L. Naff, 03/25/2010
+ *
  *    Iterative method for approximating the solution to Ax=b
  *    where x is an r_vector structure representing the initial guess
  *    and b is an r_vector structure representing the right-hand side.
@@ -145,7 +147,7 @@ int PCG_eval(r_vector* x_ptr, r_vector* b_ptr, void* A_ptr)
   r_ptr=&PCG_ptr->r;
 
   RCLOSE=PCG_ptr->RCLOSE;
-  //JDH RCLOSE=RCLOSE*RCLOSE;
+  RCLOSE=RCLOSE*RCLOSE;
 
   IITER=PCG_ptr->IITER;
   pf=PCG_ptr->pf;
@@ -164,15 +166,13 @@ int PCG_eval(r_vector* x_ptr, r_vector* b_ptr, void* A_ptr)
     GEN_eval(r_ptr,x_ptr,PCG_ptr->A_ptr);
     r1_gets_r2_minus_r1(r_ptr,b_ptr);
   }
-  //JDH RES=r_dotprd(r_ptr,r_ptr);
-  RES=r_max(r_ptr); //JDH
-  RES=fabs(RES); //JDH
+  RES=r_dotprd(r_ptr,r_ptr);
 
   if(pf)
   {
-    //JDH BIGR0=BIGR=sqrt(RES);
-    BIGR0=BIGR=RES; //JDH
-    cfac=BIGR/BIGR0;
+    BIGR0=BIGR=sqrt(RES);
+    /* cfac=BIGR/BIGR0; R.L. Naff, 03/25/2010 */
+    cfac=1.0;
     resprint(&IOUT,&k,&BIGR,&cfac);
   }
 
@@ -195,15 +195,11 @@ int PCG_eval(r_vector* x_ptr, r_vector* b_ptr, void* A_ptr)
     r1_gets_r1_plus_cr2(r_ptr,z_ptr,-ak);
 
     /* Compute L2-norm of residual */
-    //JDH RES=r_dotprd(r_ptr,r_ptr);
-    /* Compute infinity norm of residual - JDH */
-    RES=r_max(r_ptr);
-    RES=fabs(RES); //JDH
+    RES=r_dotprd(r_ptr,r_ptr);
 
     if(pf)
     {
-      //JDH BIGR=sqrt(RES);
-      BIGR=RES; //JDH
+      BIGR=sqrt(RES);
       cfac=BIGR/BIGR0;
       resprint(&IOUT,&k,&BIGR,&cfac);
       BIGR0=BIGR;
@@ -232,15 +228,11 @@ int PCG_eval(r_vector* x_ptr, r_vector* b_ptr, void* A_ptr)
       r1_gets_r1_plus_cr2(r_ptr,z_ptr,-ak);
 
       /* Compute L2-norm of residual */
-      //JDH RES=r_dotprd(r_ptr,r_ptr);
-      /* Compute infinity norm of residual - JDH */
-      RES=r_max(r_ptr); //JDH
-      RES=fabs(RES); //JDH
+      RES=r_dotprd(r_ptr,r_ptr);
 
       if(pf)
       {
-        //JDH BIGR=sqrt(RES);
-        BIGR=RES; //JDH
+        BIGR=sqrt(RES);
         cfac=BIGR/BIGR0;
         resprint(&IOUT,&k,&BIGR,&cfac);
         BIGR0=BIGR;

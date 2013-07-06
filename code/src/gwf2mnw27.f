@@ -45,8 +45,9 @@ C1------grids to be defined.
 C
 C2------IDENTIFY PACKAGE AND INITIALIZE NMNW2.
       WRITE(IOUT,1)IN
-    1 format(/,1x,'MNW2 -- MULTI-NODE WELL 2 PACKAGE, VERSION 7,',
-     +' 12/18/2009.',/,4X,'INPUT READ FROM UNIT ',i3)
+C---LFK--modify dates & version
+    1 format(/,1x,'MNW2 -- MULTI-NODE WELL 2 PACKAGE, VERSION 7.1,',
+     +' 08/26/2011.',/,4X,'INPUT READ FROM UNIT ',i3)
       NMNW2=0
       ntotnod=0
 C
@@ -58,8 +59,17 @@ C3------CELL-BY-CELL FLOW TERMS, AND PRINT FLAG
       CALL URWORD(LINE,LLOC,ISTART,ISTOP,2,IWL2CB,R,IOUT,IN)
       CALL URWORD(LINE,LLOC,ISTART,ISTOP,2,MNWPRNT,R,IOUT,IN)
 c
-      write(iout,3) MNWMAX
-    3 format(1h ,'MAXIMUM OF',i5,' ACTIVE MULTI-NODE WELLS AT ONE TIME')
+C--LFK: check for best format
+      if (MNWMAX.LT.1000) THEN
+         write(iout,3) MNWMAX
+      ELSE
+         WRITE(IOUT,4) MNWMAX
+      END IF
+    3 format(1h ,'MAXIMUM OF ',i4,' ACTIVE MULTI-NODE WELLS AT ONE TIME'
+     1)
+C--LFK--alternate output format
+    4 format(1h ,'MAXIMUM OF ',i6,' ACTIVE MULTI-NODE WELLS AT ONE TIME'
+     1)
       write(iout,*) 
       if(IWL2CB.gt.0) write(iout,9) IWL2CB
     9 format(1x, 'CELL-BY-CELL FLOWS WILL BE RECORDED ON UNIT', i3)
@@ -120,7 +130,7 @@ C7------SAVE POINTERS TO DATA AND RETURN.
       RETURN
       END
       SUBROUTINE GWF2MNW27RP(IN,kper,Iusip, Iude4,Iusor,Iupcg,
-     +                      Iulmg,Iugmg,igwtunit,IGRID)
+     +                      Iugmg,Iupcgn,igwtunit,IGRID)
 C     ******************************************************************
 c     read mnw2 locations, stress rates, conc, well char., and limits
 C     ******************************************************************
@@ -135,7 +145,8 @@ C     ------------------------------------------------------------------
       USE SIPMODULE,ONLY:HCLOSE
       USE DE4MODULE,ONLY:HCLOSEDE4
       USE PCGMODULE,ONLY:HCLOSEPCG
-c      USE GMGMODULE,ONLY:HCLOSEGMG
+      USE GMGMODULE,ONLY:HCLOSEGMG
+      USE PCGN,ONLY:HCLOSEPCGN
 C     ------------------------------------------------------------------
       INTEGER Qlimit,QCUT,firstnode,lastnode,
      & PUMPLAY,PUMPROW,PUMPCOL,PUMPLOC,PPFLAG,PUMPCAP
@@ -174,12 +185,13 @@ c     set defaults
       ntotnod=0
       INTTOT=0
 C-------SET SMALL DEPENDING ON CLOSURE CRITERIA OF THE SOLVER
+      SMALL = 0.0D0
       IF ( Iusip.NE.0 ) SMALL = HCLOSE
       IF ( Iude4.NE.0 ) SMALL = HCLOSEDE4
 !     IF ( Iusor.NE.0 ) SMALL = HCLOSESOR
       IF ( Iupcg.NE.0 ) SMALL = HCLOSEPCG
-      IF ( Iulmg.NE.0 ) SMALL = 0.0D0  !LMG SETS HCLOSE TO ZERO
-c      IF ( Iugmg.NE.0 ) SMALL = HCLOSEGMG
+      IF ( Iugmg.NE.0 ) SMALL = HCLOSEGMG
+      IF ( Iupcgn.NE.0 ) SMALL = HCLOSEPCGN
 c     initialize
       WELLID=' '
       MNW2=0.0D0
@@ -1551,8 +1563,9 @@ c
         write(iout,*) 
         do iread=1,ITMP
 c  read data set 4a
-c  read WELLNAME and then backspace to check for PUMPCAP
-         read(in,*) WELLNAME
+c  read WELLNAME & Qdes and then backspace to check for PUMPCAP
+c-lfk    read(in,*) WELLNAME
+         read(in,*) WELLNAME,qdes
          backspace(in)
          call UPCASE(WELLNAME)
 c  check for existence of well
@@ -1581,17 +1594,29 @@ c   continue reading data set 4a
           if(igwtunit.le.0) then
             read(in,*) WELLNAME,Qdes,(MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
           else
-            read(in,*) WELLNAME,Qdes,Cprime,
+c-lfk:  Only read Cprime for recharge/injection well (Qdes.gt.0.0)
+            if (Qdes.gt.0.0) then
+              read(in,*) WELLNAME,Qdes,Cprime,
      &                 (MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
+            else
+              read(in,*) WELLNAME,Qdes,
+     &                 (MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
+            end if
 	      endif
 	     else
           if(igwtunit.le.0) then
             read(in,*) WELLNAME,Qdes,CapMult,
      &                 (MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
           else
-            read(in,*) WELLNAME,Qdes,CapMult,Cprime,
+c-lfk:  Only read Cprime for recharge/injection well (Qdes.gt.0.0)
+            if (Qdes.gt.0.0) then
+              read(in,*) WELLNAME,Qdes,CapMult,Cprime,
      &                 (MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
-	      endif
+            else
+              read(in,*) WELLNAME,Qdes,CapMult,
+     &                 (MNW2(30+IAUX,MNWID),IAUX=1,NAUX)
+            end if
+	    endif
          end if
 C-LFK   write auxiliary variable info.
          if (naux.gt.0.and.mnwprnt.gt.0) then
@@ -2427,8 +2452,6 @@ c6------if cell-by-cell flows will be saved call ubudsv to record them
           if( ibd.eq.2 ) then   !!  Write COMPACT budget
 c   Loop over all wells
             do iw=1,MNWMAX
-c   active well check
-c             if(MNW2(1,iw).gt.0) then
 c   Loop over nodes in well
               firstnode=MNW2(4,iw)
               lastnode=MNW2(4,iw)+ABS(MNW2(2,iw))-1
@@ -2437,11 +2460,14 @@ c   Loop over nodes in well
                 ir=MNWNOD(2,INODE)
                 il=MNWNOD(1,INODE)
                 Q = MNWNOD(4,INODE)
+c  lfk  active well check
+                if(MNW2(1,iw).eq.0) Q=0.0
+c
                 call UBDSVB(ioc,ncol,nrow,IC,IR,IL,real(Q),
      +                    real(mnw2(:,iw)),
      +                    NMNWVL,NAUX,31,IBOUND,NLAY)
               end do
-c             endif
+c            endif
             enddo
           else                  !!  Write full 3D array
             call ubudsv(kstp,kper,text,ioc, buff,ncol,nrow,nlay,iout)
@@ -2610,7 +2636,8 @@ C  FOR BCF, must assume Kh=Kz as only input is VCONT
          else
            Kz=0.d0
          end if
-         IF(ISS.NE.0) THEN
+c-lfk         IF(ISS.NE.0) THEN
+         IF(ISS.EQ.0.and.thick.gt.0.D0) THEN
            SS=SC1(IX,IY,IZ)/(thick*dx*dy)
          ELSE
            SS=1e-5
@@ -2672,11 +2699,11 @@ C     FIND HORIZONTAL ANISOTROPY, THE RATIO Ky/Kx
          IF (CHANI(IZ).GT.0.0) THEN
           AH = CHANI(IZ)
          ELSE
-          IF(ITRSS.NE.0) THEN 
+C-LFK     IF(ITRSS.NE.0) THEN 
             AH = HANI(IX,IY,IZ)
-          ELSE
-            AH = HANI(1,1,1)
-          END IF
+C-LFK     ELSE
+C-LFK       AH = HANI(1,1,1)
+C-LFK     END IF
          ENDIF
 C
          if (LAYHDT(IZ).EQ.0) then
@@ -2710,11 +2737,29 @@ c   set thickness / conductance to 0 if cell is dry
              Kz=HK(ix,iy,iz)/VKA(ix,iy,iz)
            END IF
          end if
-         IF(ITRSS.NE.0) THEN
+c-lfk
+c          if (thick.le.0) then
+c            if (LAYHDT(IZ).eq.0)then
+c         write (iout,*) 'thck = ',thick,'iz,LAYHDT(IZ) = ',IZ,LAYHDT(IZ)
+c         write (iout,*) ' confined; inode,ix,iy = ',inode,ix,iy
+c         write (iout,*) 'top,bottom = ', top,bot
+c            else
+c         write (iout,*) 'thck = ',thick,'iz,LAYHDT(IZ) = ',IZ,LAYHDT(IZ)
+c         write (iout,*) 'unconfined; inode,ix,iy = ',inode,ix,iy
+c         write (iout,*) 'upper,bottom = ', upper,bot
+c            end if
+c          end if
+c         continue
+c lfk  4/21/11 modifications below to prevent zero-divide error if thick.eq.0       
+         IF(thick.gt.0) THEN
+          IF(ITRSS.NE.0) THEN
            SS=SC1(IX,IY,IZ)/(thick*dx*dy)
-         ELSE
+          ELSE
            SS=1e-5  
-         END IF
+          END IF
+         else
+           SS=0.0
+         end if
          MNWNOD(33,INODE)=Kz
          MNWNOD(34,INODE)=SS
         end do
@@ -2722,7 +2767,7 @@ c   set thickness / conductance to 0 if cell is dry
       end do 
       return
       end
-c
+c lfk
 c
 c
       SUBROUTINE GWF2MNW27HUF(KPER,IGRID)
@@ -2742,7 +2787,8 @@ C     ------------------------------------------------------------------
 C     ------------------------------------------------------------------
       INTEGER firstnode,lastnode
       DOUBLE PRECISION verysmall,dx,dy,top,bot,ah,
-     & Txx,Tyy,upper,TempKX,thick
+C-LFK     & Txx,Tyy,upper,TempKX,thick
+     & Txx,Tyy,upper,TempKX,thick,KY
       REAL Kz
 C
       CALL SGWF2MNW2PNT(IGRID)
@@ -2801,7 +2847,8 @@ c   set thickness / conductance to 0 if cell is dry
          else
            Kz=VKAH(ix,iy,iz)
          end if
-         IF(ISS.NE.0) THEN
+C-LFK         IF(ISS.NE.0) THEN
+         IF(ISS.EQ.0.and.thick.gt.0.0) THEN
            SS=SC1(IX,IY,IZ)/(thick*dx*dy)
          ELSE
            SS=1e-5
@@ -2872,8 +2919,8 @@ c   if transient, by kiter=1 , if not, by tstep=1
         write(iout,'(120A)') '                              M O D E L
      &  L A Y E R     W E L L  S C R E E N   Penetration    SKIN     
      &  CALCULATED'
-        write(iout,'(120A)') 'WELLID        Node    CWC*    top elev   
-     &bott.elev     top elev   bott.elev    fraction     COEFF.
+        write(iout,'(120A)') 'WELLID        Node    CWC*    top_elev   
+     &bott.elev     top_elev   bott.elev    fraction     COEFF.
      &          B'
       end if
 c   Compute cell-to-well conductance for each well node
@@ -3967,7 +4014,8 @@ c     correct for right quadrant
         if(x2.ge.x1) then
           theta=360.D0-theta
         else if (x2.le.x1) then
-          theta=270.D0-theta
+C-LFK          theta=270.D0-theta
+          theta=180.D0+theta
         end if
       else if (y2.le.y1) then
         if (x2.le.x1) then
@@ -4462,8 +4510,8 @@ C        (if there are any more MNW wells)
         write(iout,'(120A)') '                              M O D E L
      &  L A Y E R     W E L L  S C R E E N   Penetration    SKIN     
      &  CALCULATED'
-        write(iout,'(120A)') 'WELLID        Node    CWC*    top elev   
-     &bott.elev     top elev   bott.elev    fraction     COEFF.
+        write(iout,'(120A)') 'WELLID        Node    CWC*    top_elev   
+     &bott.elev     top_elev   bott.elev    fraction     COEFF.
      &          B'
        end if
 c

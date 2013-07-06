@@ -273,7 +273,7 @@ Cx------COMPUTE FLOW FOR THE REACH.
      &              ' diminish the impact of the',/,
      &              ' observation for some parameters.',/,
      &              '  No *: Aquifer head at the stream cell is',
-     &              ' below, the bottom of the streambed.',/,
+     &              ' below the bottom of the streambed.',/,
      &              '  *   : Seepage to the aquifer is limited by',
      &              ' available streamflow.')
                     JRBOT = 1

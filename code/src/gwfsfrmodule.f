@@ -3,9 +3,14 @@
         DOUBLE PRECISION,PARAMETER :: NEARZERO=1.0D-30
         DOUBLE PRECISION,SAVE :: THETAB, FLUXB, FLUXHLD2
         REAL,PARAMETER :: CLOSEZERO=1.0E-15
-        INTEGER, SAVE :: Nfoldflbt
+        INTEGER, SAVE :: Nfoldflbt, NUMTAB, MAXVAL
+        INTEGER,SAVE,  DIMENSION(:),  POINTER:: DVRCH   !(diverted recharge flag; then reharge cell count)
+        INTEGER,SAVE,  DIMENSION(:,:,:),POINTER:: DVRCELL !(store cells to apply diverted recharge)
+        REAL,   SAVE,  DIMENSION(:,:),POINTER:: RECHSAVE  !(store original recharge values)
+        REAL,   SAVE,  DIMENSION(:,:),POINTER:: DVRPERC  !(Percentage of diversion applied to each cell)
+        REAL,   SAVE,  DIMENSION(:),POINTER:: DVEFF  !(store efficiency factor)
         INTEGER,SAVE,POINTER:: NSS, NSTRM, NSFRPAR, ISTCB1, ISTCB2
-        INTEGER,SAVE,POINTER:: IUZT, MAXPTS, IRTFLG, NUMTIM
+        INTEGER,SAVE,POINTER:: IUZT, MAXPTS, IRTFLG, NUMTIM, NSEGDIM
         INTEGER,SAVE,POINTER:: ISFROPT, NSTRAIL, ISUZN, NSFRSETS
         INTEGER,SAVE,POINTER:: NUZST, NSTOTRL, NUMAVE
         INTEGER,SAVE,POINTER:: ITMP, IRDFLG, IPTFLG, NP
@@ -25,6 +30,9 @@
         REAL,   SAVE,  DIMENSION(:,:),POINTER:: QSTAGE, XSEC
         REAL,   SAVE,  DIMENSION(:,:),POINTER:: AVDPT, AVWAT, WAT1
         REAL,   SAVE,  DIMENSION(:,:),POINTER:: CONCQ, CONCRUN, CONCPPT
+        REAL,   SAVE,  DIMENSION(:,:),POINTER:: TABFLOW, TABTIME   !Reading Spedified inflow
+        REAL,   SAVE,  DIMENSION(:,:),POINTER:: FNETSEEP           !writing net seepage in UZF
+        INTEGER,SAVE,  DIMENSION(:,:),POINTER:: ISFRLIST           !Reading Spedified inflow
         DOUBLE PRECISION,SAVE,DIMENSION(:),  POINTER:: THTS,THTR,EPS
         DOUBLE PRECISION,SAVE,DIMENSION(:),  POINTER:: FOLDFLBT, THTI
         DOUBLE PRECISION,SAVE,DIMENSION(:),  POINTER:: SUMLEAK,SUMRCH
@@ -40,8 +48,13 @@
         DOUBLE PRECISION,SAVE,DIMENSION(:,:),POINTER:: QSTRM, SLKOTFLW
         DOUBLE PRECISION,SAVE,DIMENSION(:,:),POINTER:: DLKOTFLW,DLKSTAGE
       TYPE GWFSFRTYPE
+        INTEGER,       DIMENSION(:),  POINTER:: DVRCH      !Diversions to recharge
+        INTEGER,       DIMENSION(:,:,:),  POINTER:: DVRCELL  !Diversions to recharge
+        REAL,          DIMENSION(:,:),POINTER:: RECHSAVE  !Diversions to recharge
+        REAL,          DIMENSION(:,:),POINTER:: DVRPERC  !Diversions to recharge
+        REAL,          DIMENSION(:),POINTER:: DVEFF  !Diversions to recharge
         INTEGER,     POINTER:: NSS, NSTRM, NSFRPAR, ISTCB1, ISTCB2
-        INTEGER,     POINTER:: IUZT, MAXPTS, IRTFLG, NUMTIM
+        INTEGER,     POINTER:: IUZT, MAXPTS, IRTFLG, NUMTIM, NSEGDIM
         INTEGER,     POINTER:: ISFROPT, NSTRAIL, ISUZN, NSFRSETS
         INTEGER,     POINTER:: NUZST, NSTOTRL, NUMAVE
         INTEGER,     POINTER:: ITMP, IRDFLG, IPTFLG, NP
@@ -61,6 +74,9 @@
         REAL,          DIMENSION(:,:),POINTER:: QSTAGE, XSEC
         REAL,          DIMENSION(:,:),POINTER:: AVDPT, AVWAT, WAT1
         REAL,          DIMENSION(:,:),POINTER:: CONCQ, CONCRUN, CONCPPT
+        REAL,          DIMENSION(:,:),POINTER:: TABFLOW, TABTIME  ! Reading SPecified inflow
+        REAL,          DIMENSION(:,:),POINTER:: FNETSEEP          !writing net seepage in UZF
+        INTEGER,       DIMENSION(:,:),POINTER:: ISFRLIST
         DOUBLE PRECISION,     DIMENSION(:),  POINTER:: THTS,THTR,EPS
         DOUBLE PRECISION,     DIMENSION(:),  POINTER:: FOLDFLBT, THTI
         DOUBLE PRECISION,     DIMENSION(:),  POINTER:: SUMLEAK, SUMRCH

@@ -119,7 +119,7 @@ C     ******************************************************************
 C
 C        SPECIFICATIONS:
 C     ------------------------------------------------------------------
-      USE GLOBAL,   ONLY:IOUT,NCOL,NROW,NLAY,IBOUND
+      USE GLOBAL,   ONLY:IOUT,NCOL,NROW,NLAY,IBOUND,IACTCELL
       USE UPCGMODULE
       USE OMP_LIB 
 C
@@ -292,34 +292,34 @@ C-------CALCULATE NUMBER OF NON-ZERO ENTRIES IN MODEL GRID
         DO I = 1, NROW
           DO J = 1, NCOL
             IC = IC + 1
-            IF ( IBOUND(J,I,K).GT.0 ) THEN
+            IF ( IACTCELL(J,I,K).GT.0 ) THEN
               NIAC = NIAC + 1
               NNZC = NNZC + 1
               ieq  = ieq  + 1
               NODEC(J,I,K) = ieq
 C               TOP FACE
               IF ( K.GT.1 ) THEN
-                IF ( IBOUND(J,I,K-1).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J,I,K-1).GT.0 ) NNZC = NNZC + 1
               END IF
 C               UPPER FACE
               IF ( I.GT.1 ) THEN
-                IF ( IBOUND(J,I-1,K).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J,I-1,K).GT.0 ) NNZC = NNZC + 1
               END IF
 C               LEFT FACE
               IF ( J.GT.1 ) THEN
-                IF ( IBOUND(J-1,I,K).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J-1,I,K).GT.0 ) NNZC = NNZC + 1
               END IF
 C               RIGHT FACE
               IF ( J.LT.NCOL ) THEN
-                IF ( IBOUND(J+1,I,K).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J+1,I,K).GT.0 ) NNZC = NNZC + 1
               END IF
 C               LOWER FACE
               IF ( I.LT.NROW ) THEN
-                IF ( IBOUND(J,I+1,K).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J,I+1,K).GT.0 ) NNZC = NNZC + 1
               END IF
 C               BOTTOM FACE
               IF ( K.LT.NLAY ) THEN
-                IF ( IBOUND(J,I,K+1).GT.0 ) NNZC = NNZC + 1
+                IF ( IACTCELL(J,I,K+1).GT.0 ) NNZC = NNZC + 1
               END IF
             END IF
           END DO
@@ -483,11 +483,11 @@ C-------FILL IA AND JA
       IND = 0
       IC  = 0
       ieq = 0
-      DO K = 1, NLAY
-        DO I = 1, NROW
-          DO J = 1, NCOL
+      IAJALAY: DO K = 1, NLAY
+        IAJAROW: DO I = 1, NROW
+          IAJACOL: DO J = 1, NCOL
             IND = IND + 1
-            IF ( IBOUND(J,I,K).GT.0 ) THEN
+            IF ( IACTCELL(J,I,K).GT.0 ) THEN
               IC = IC + 1
               ieq = ieq + 1
               IAC(ieq) = IC
@@ -495,51 +495,50 @@ C-------FILL IA AND JA
               JAC(IC) = NODEC(J,I,K)
 C               TOP FACE
               IF ( K.GT.1 ) THEN
-                IF ( IBOUND(J,I,K-1).GT.0 ) THEN
+                IF ( IACTCELL(J,I,K-1).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC) = NODEC(J,I,K-1)
                 END IF
               END IF
 C               UPPER FACE
               IF ( I.GT.1 ) THEN
-                IF ( IBOUND(J,I-1,K).GT.0 ) THEN
+                IF ( IACTCELL(J,I-1,K).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC) = NODEC(J,I-1,K)
                 END IF
               END IF
 C               LEFT FACE
               IF ( J.GT.1 ) THEN
-                IF ( IBOUND(J-1,I,K).GT.0 ) THEN
+                IF ( IACTCELL(J-1,I,K).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC)  = NODEC(J-1,I,K)
                 END IF
               END IF
 C               RIGHT FACE
               IF ( J.LT.NCOL ) THEN
-                IF ( IBOUND(J+1,I,K).GT.0 ) THEN
+                IF ( IACTCELL(J+1,I,K).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC) = NODEC(J+1,I,K)
                 END IF
               END IF
 C               LOWER FACE
               IF ( I.LT.NROW ) THEN
-                IF ( IBOUND(J,I+1,K).GT.0 ) THEN
+                IF ( IACTCELL(J,I+1,K).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC) = NODEC(J,I+1,K)
                 END IF
               END IF
 C               BOTTOM FACE
               IF ( K.LT.NLAY ) THEN
-                IF ( IBOUND(J,I,K+1).GT.0 ) THEN
+                IF ( IACTCELL(J,I,K+1).GT.0 ) THEN
                   IC = IC + 1
                   JAC(IC) = NODEC(J,I,K+1)
                 END IF
               END IF
-              
             END IF
-          END DO
-        END DO
-      END DO
+          END DO IAJACOL
+        END DO IAJAROW
+      END DO IAJALAY
 C
 C-------SET LAST POSITION IN IAC
       IAC(NIAC+1) = IC + 1
@@ -738,7 +737,7 @@ C-------RETURN
       RETURN
       END SUBROUTINE UPCG7AR
       
-      SUBROUTINE UPCG7AP(HNEW,IBOUND,CR,CC,CV,HCOF,RHS,
+      SUBROUTINE UPCG7AP(HNEW,IBOUND,IACTCELL,CR,CC,CV,HCOF,RHS,
      &                 ICNVG,KSTP,KPER,MXITER,KITER,
      &                 NCOL,NROW,NLAY,NODES,HNOFLO,IOUT,
      &                 NPC,NOPT,NTRD,NTRDV,NITER,ITER1,NNZC,NIAC,
@@ -769,6 +768,7 @@ C     ------------------------------------------------------------------
 C     + + + DUMMY ARGUMENTS + + +
       DOUBLEPRECISION, DIMENSION(NODES), INTENT(INOUT) :: HNEW
       INTEGER, DIMENSION(NODES), INTENT(INOUT)         :: IBOUND
+      INTEGER, DIMENSION(NODES), INTENT(IN)            :: IACTCELL
       REAL, DIMENSION(NODES), INTENT(IN)               :: CR
       REAL, DIMENSION(NODES), INTENT(IN)               :: CC
       REAL, DIMENSION(NODES), INTENT(IN)               :: CV
@@ -931,9 +931,9 @@ C-------AND IS BLATANTLY COPIED FROM HILL, 1990.
         RFILL: DO i = 1, NROW
           CFILL: DO j = 1, NCOL
 C
-C---------------CALCULATE 1 DIMENSIONAL SUBSCRIPT OF CURRENT CELL AND
-C---------------INITIALIZE MATRIX COEFFICIENTS TO ZERO. CHECK IF CELL IS ACTIVE 
-C---------------SKIP COEFFICIENT CALCULATIONS IF CELL IS INACTIVE
+C-------------CALCULATE 1 DIMENSIONAL SUBSCRIPT OF CURRENT CELL AND
+C-------------INITIALIZE MATRIX COEFFICIENTS TO ZERO. CHECK IF CELL IS ACTIVE 
+C-------------SKIP COEFFICIENT CALCULATIONS IF CELL IS INACTIVE
             n = j + (i-1) * NCOL + (k-1) * nrc
             e = dzero
             z = dzero
@@ -943,176 +943,175 @@ C---------------SKIP COEFFICIENT CALCULATIONS IF CELL IS INACTIVE
             h = dzero
             s = dzero
             iinactive = 1
-            IF( IBOUND(n).GT.0 ) THEN
-              iinactive = 0
-              ieq       = ieq + 1
-C
-C---------------CALCULATE 1 DIMENSIONAL SUBSCRIPTS FOR LOCATING THE 6
-C---------------SURROUNDING CELLS
-              nrn = n + NCOL
-              nrl = n - NCOL
-              ncn = n + 1
-              ncl = n - 1
-              nln = n + nrc
-              nll = n - nrc
-C
-C---------------CALCULATE 1 DIMENSIONAL SUBSCRIPTS FOR CONDUCTANCE TO THE 6
-C---------------SURROUNDING CELLS.
-              ncf = n
-              ncd = n - 1
-              nrb = n - NCOL
-              nrh = n
-              nls = n
-              nlz = n - nrc
-C
-C---------------STORE DOUBLE PRECISION VALUE OF RHS FOR CALCULATION OF RESIDUALS
-              rrhs    =  RHS(n)
-              BC(ieq) = -rrhs
-C
-C---------------GET CONDUCTANCES TO NEIGHBORING CELLS.  
-C---------------ACCUMULATE CONTRIBUTIONS TO DIAGONAL COEFFICIENT. IF NEIGHBOR IS 
-C---------------CONSTANT HEAD, MODIFY RHS AND SET OFF-DIAGONAL COEFFICIENT TO 0
-C
-C
-!              iapos  = iapos + 1
+            ieq       = NODEC(j,i,k)
+C-------------EVALUATE IF CELL CAN BE ACTIVE
+            ISACTIVE: IF( IACTCELL(n).GT.0 ) THEN
               iadiag = IAC(ieq)
-              iapos  = iadiag
+              ACTASSMBL: IF( IBOUND(n).GT.0 ) THEN
+                iinactive = 0
 C
-C               TOP FACE
-C---------------NEIGHBOR IS 1 LAYER BEHIND
-              zhnew = dzero
-              IF ( k.NE.1 ) THEN
-                z = CV(nlz)
-                e = e + z 
-                zhnew = z*(HNEW(nll) - HNEW(n))
-                IF ( IBOUND(nll).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -z
-                END IF
-                IF( IBOUND(nll).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + z*HNEW(nll) 
-                  z = DZERO
-                END IF
-              END IF
+C-----------------CALCULATE 1 DIMENSIONAL SUBSCRIPTS FOR LOCATING THE 6
+C-----------------SURROUNDING CELLS
+                nrn = n + NCOL
+                nrl = n - NCOL
+                ncn = n + 1
+                ncl = n - 1
+                nln = n + nrc
+                nll = n - nrc
 C
-C               UPPER FACE
-C---------------NEIGHBOR IS 1 ROW BACK
-              bhnew = dzero
-              IF ( i.NE.1 ) THEN
-                b = CC(nrb)
-                e = e + b
-                bhnew = b*(HNEW(nrl) - HNEW(n))
-                IF( IBOUND(nrl).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -b
-                END IF 
-                IF( IBOUND(NRL).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + b*HNEW(nrl) 
-                  b = dzero
-                END IF 
-              END IF
+C-----------------CALCULATE 1 DIMENSIONAL SUBSCRIPTS FOR CONDUCTANCE TO THE 6
+C-----------------SURROUNDING CELLS.
+                ncf = n
+                ncd = n - 1
+                nrb = n - NCOL
+                nrh = n
+                nls = n
+                nlz = n - nrc
 C
-C               LEFT FACE
-C---------------NEIGHBOR IS 1 COLUMN BACK
-              dhnew = dzero
-              IF ( j.NE.1 ) THEN
-                d = CR(ncd)
-                e = e + d
-                dhnew = d*(HNEW(ncl) - HNEW(n))
-                IF( IBOUND(ncl).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -d
-                END IF
-                IF( IBOUND(ncl).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + d*HNEW(ncl) 
-                  d = dzero
-                END IF 
-              END IF
+C-----------------STORE DOUBLE PRECISION VALUE OF RHS FOR CALCULATION OF RESIDUALS
+                rrhs    =  RHS(n)
+                BC(ieq) = -rrhs
 C
-C               RIGHT FACE
-C---------------NEIGHBOR IS 1 COLUMN AHEAD
-              fhnew = dzero
-              IF ( j.NE.NCOL ) THEN
-                f = CR(ncf)
-                e = e + f
-                fhnew = f*(HNEW(ncn) - HNEW(n))
-                IF( IBOUND(ncn).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -f
-                END IF
-                IF( IBOUND(ncn).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + f*HNEW(ncn) 
-                  f = dzero 
-                END IF
-              END IF
+C-----------------GET CONDUCTANCES TO NEIGHBORING CELLS.  
+C-----------------ACCUMULATE CONTRIBUTIONS TO DIAGONAL COEFFICIENT. IF NEIGHBOR IS 
+C-----------------CONSTANT HEAD, MODIFY RHS AND SET OFF-DIAGONAL COEFFICIENT TO 0
+                iapos  = iadiag
 C
-C               LOWER FACE
-C---------------NEIGHBOR IS 1 ROW AHEAD
-              hhnew = dzero
-              IF ( i.NE.NROW ) THEN
-                h = CC(nrh)
-                e = e + h
-                hhnew = h*(HNEW(nrn) - HNEW(n))
-                IF( IBOUND(nrn).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -h
+C                 TOP FACE
+C-----------------NEIGHBOR IS 1 LAYER BEHIND
+                IF ( k.NE.1 ) THEN
+                    z = CV(nlz)
+                    IF ( IACTCELL(nll).GT.0 ) THEN
+                      iapos = iapos + 1
+                      IF ( IBOUND(nll).GT.0 ) THEN
+                        AC(iapos) = -z
+                      ELSE
+                        z = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(nll).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + z*HNEW(nll) 
+                      END IF
+                    END IF
                 END IF
-                IF( IBOUND(nrn).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + h*HNEW(nrn) 
-                  h = dzero
-                END IF 
-              END IF
 C
-C               BOTTOM FACE
-C---------------NEIGHBOR IS 1 LAYER AHEAD
-              shnew = dzero
-              IF ( k.NE.NLAY ) THEN
-                s = CV(nls)
-                e = e + s
-                shnew = s*(HNEW(nln) - HNEW(n))
-                IF( IBOUND(nln).GT.0 ) THEN
-                  iapos = iapos + 1
-                  AC(iapos) = -s
+C                 UPPER FACE
+C-----------------NEIGHBOR IS 1 ROW BACK
+                IF ( i.NE.1 ) THEN
+                    b = CC(nrb)
+                    IF ( IACTCELL(nrl).NE.0 ) THEN
+                      e = e + b
+                      iapos = iapos + 1
+                      IF( IBOUND(nrl).GT.0 ) THEN
+                        AC(iapos) = -b
+                      ELSE
+                        b = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(nrl).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + b*HNEW(nrl) 
+                      END IF 
+                    END IF
                 END IF
-                IF( IBOUND(nln).LT.0 ) THEN
-                  BC(ieq) = BC(ieq) + s*HNEW(nln) 
-                  s = dzero
+C
+C                 LEFT FACE
+C-----------------NEIGHBOR IS 1 COLUMN BACK
+                IF ( j.NE.1 ) THEN
+                    d = CR(ncd)
+                    IF ( IACTCELL(ncl).NE.0 ) THEN
+                      iapos = iapos + 1
+                      IF( IBOUND(ncl).GT.0 ) THEN
+                        AC(iapos) = -d
+                      ELSE
+                        d = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(ncl).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + d*HNEW(ncl) 
+                      END IF 
+                    END IF
                 END IF
-              END IF
+C
+C                 RIGHT FACE
+C-----------------NEIGHBOR IS 1 COLUMN AHEAD
+                IF ( j.NE.NCOL ) THEN
+                    f = CR(ncf)
+                    IF ( IACTCELL(ncn).NE.0 ) THEN
+                      iapos = iapos + 1
+                      IF( IBOUND(ncn).GT.0 ) THEN
+                        AC(iapos) = -f
+                      ELSE
+                        f = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(ncn).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + f*HNEW(ncn) 
+                      END IF
+                    END IF
+                END IF
+C
+C                 LOWER FACE
+C-----------------NEIGHBOR IS 1 ROW AHEAD
+                IF ( i.NE.NROW ) THEN
+                    h = CC(nrh)
+                    IF ( IACTCELL(nrn).NE.0 ) THEN
+                      iapos = iapos + 1
+                      IF( IBOUND(nrn).GT.0 ) THEN
+                        AC(iapos) = -h
+                      ELSE
+                        h = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(nrn).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + h*HNEW(nrn) 
+                      END IF 
+                    END IF
+                END IF
+C
+C                 BOTTOM FACE
+C-----------------NEIGHBOR IS 1 LAYER AHEAD
+                IF ( k.NE.NLAY ) THEN
+                    s = CV(nls)
+                    IF ( IACTCELL(nln).NE.0 ) THEN
+                      iapos = iapos + 1
+                      IF( IBOUND(nln).GT.0 ) THEN
+                        AC(iapos) = -s
+                      ELSE
+                        h = dzero
+                      END IF
+                    ELSE
+                      IF( IBOUND(nln).LT.0 ) THEN
+                        BC(ieq) = BC(ieq) + s*HNEW(nln) 
+                      END IF
+                    END IF
+                END IF
 C    
-C---------------CHECK IF SURROUNDING CELLS ARE ACTIVE (E > 0).  IF SO, CALCULATE 
-C---------------L2 NORM.  ACCUMULATE THE AVERAGE ABSOLUTE VALUE  OF THE RHS 
-C---------------VECTOR FOR ALL ACTIVE CELLS.  THIS IS USED TO SCALE THE THE 
-C---------------CLOSURE CRITERIA. 
-C---------------IF SURROUNDING CELLS ARE INACTIVE BUT CURRENT CELL IS ACTIVE,
-C---------------SET HNEW TO HNOFLO, IBOUND TO 0, AND CHANGE INACTIVE FLAG TO 1
-              IF ( e.GT.dzero ) THEN
-                hhcof = HNEW(n)*HCOF(n)
-                rsq = rsq + (rrhs - zhnew - bhnew - dhnew - hhcof - 
-     &             fhnew - hhnew - shnew)**2
+C-----------------CHECK IF CELL IS ACTIVE (E + HCOF > 0).
+C-----------------IF SURROUNDING CELLS ARE INACTIVE BUT CURRENT CELL IS ACTIVE,
+C-----------------AND NO HEAD DEPENDENT BOUNDARY CONDITIONS (HCOF) THEN SET
+C-----------------HNEW TO HNOFLO, IBOUND TO 0, AND CHANGE INACTIVE FLAG TO 1
+                e = z + b + d + f + h + s
                 e = e - HCOF(n)
-                fbar = fbar + ABS( BC(ieq) )
-                ncount = ncount + 1
-              ELSE
-                HNEW(n)   = HNOFLO
-                IBOUND(n) = 0
-                iinactive = 1
-C                 IF INACTIVE OR CONSTANT HEAD, SET DIAGONAL TO 1.0, AND ADJUST RHS ACCORDINGLY.  
+                IF ( e.EQ.dzero ) THEN
+                  HNEW(n)   = HNOFLO
+                  IBOUND(n) = 0
+                  iinactive = 1
+                END IF
+C---------------END IBOUND(N) .GT. 0
+              END IF ACTASSMBL
+C
+C---------------IF INACTIVE OR CONSTANT HEAD, SET DIAGONAL TO 1.0, AND ADJUST RHS ACCORDINGLY.  
+              IF ( iinactive.EQ.1 ) THEN
                 e = done
                 BC(ieq) = HNEW(n)
               END IF
-C
-C-------------FIND THE MAXIMUM VALUE OF THE RHS VECTOR FOR ALL CELLS (ACTIVE
-C-------------AND INACTIVE) FOR CLOSURE SCALING USED BY THE UNSTRUCTURED PCG SOLVER
-              fmax = MAX( fmax, ABS( BC(ieq) ) )
 C
 C---------------STORE THE COEFFICENTS OF THE DIAGONAL IN A
               AC(iadiag) = e
 C---------------STORE INITIAL GUESS OF HEADS
               XC(ieq) = HNEW(n)     
-C
-C-------------END IBOUND(N) .GT. 0
-            END IF
+C-------------END IACTCELL(N) .GT. 0
+            END IF ISACTIVE
           END DO CFILL
         END DO RFILL
       END DO LFILL
@@ -1130,7 +1129,7 @@ C       SCALE MATRIX FOR POLYNOMIAL PRECONDITIONER
       IF ( ISCL.NE.0 ) THEN
         CALL SUPCGSCL(1,NNZC,NIAC,AC,XC,BC,SCL,SCLI,IAC,JAC)
       END IF
-      CALL SUPCGPCU(NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
+      CALL SUPCGPCU(IOUT,NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
      2              AC,APC,IAC,JAC,IUC,IWC,
      3              GLSPOLY)
       CALL SUPCGTIMER(1,tpcu1,UPCGPCUT)
@@ -1413,6 +1412,8 @@ C         FREE GPU MEMORY
      &                      CU_JAC,CU_IAC,
      &                      CU_AC,CU_APC,CU_XC,
      &                      CU_DC,CU_ZC,CU_PC,CU_QC,
+     &                      CU_SCL,CU_SCLI,
+     &                      CU_V,CU_V0,CU_V1,
      &                      PL_DC,PL_ZC)
         END IF
 C
@@ -1677,12 +1678,13 @@ C---------RETURN
       END SUBROUTINE SUPCGSCL
 C
 C-------ROUTINE TO UPDATE THE PRECONDITIONER
-      SUBROUTINE SUPCGPCU(NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
+      SUBROUTINE SUPCGPCU(IOUT,NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
      2                    AC,APC,IAC,JAC,IUC,IWC,
      3                    GLSPOLY)
         USE UPCGMODULE, ONLY: TGLSPOLY
         IMPLICIT NONE
 C     + + + DUMMY ARGUMENTS + + +
+        INTEGER, INTENT(IN) :: IOUT
         INTEGER, INTENT(IN) :: NOPT
         INTEGER, INTENT(IN) :: NTRD
         INTEGER, INTENT(IN) :: NTRDV
@@ -1701,7 +1703,12 @@ C     + + + DUMMY ARGUMENTS + + +
         TYPE (TGLSPOLY), INTENT(INOUT)           :: GLSPOLY
 C     + + + LOCAL DEFINITIONS + + +
         INTEGER :: n
+        INTEGER :: izero
+        DOUBLEPRECISION :: delta
 C     + + + FUNCTIONS + + +
+C     + + + FORMATS + + +
+2000    FORMAT (/,' MATRIX IS SEVERELY NON-DIAGONALLY DOMINANT.  CHECK',
+     &          ' INPUT FILES.',/,' -- STOP EXECUTION (SUPCGPCU)')
 C     + + + CODE + + +
         SELECT CASE(NPC)
 C           NO PRE-CONDITIONER
@@ -1709,10 +1716,23 @@ C           NO PRE-CONDITIONER
 C           JACOBI PRE-CONDITIONER
           CASE (1)
             CALL SUPCGPCJ(NNZC,NIAC,AC,APC,IAC)
-C           ILU0
+C           ILU0 AND MILU0
           CASE (2,3)
-            CALL SUPCGPCILU0(NPC,NNZC,NIAC,NIAPC,NIWC,
-     2                       AC,APC,IAC,JAC,IUC,IWC)
+            delta = 0.0D0
+            izero = 0
+            LILU0: DO
+              CALL SUPCGPCILU0(NPC,NNZC,NIAC,NIAPC,NIWC,
+     2                         AC,APC,IAC,JAC,IUC,IWC,
+     3                         izero,delta)
+              IF ( izero.NE.1 ) THEN
+                EXIT LILU0
+              END IF
+              delta = 1.5D0 * delta + 0.001
+              IF ( delta.GT.0.5D0 ) THEN
+                WRITE(IOUT,2000)
+                CALL USTOP('MATRIX IS SEVERELY NON-DIAGONALLY DOMINANT')
+              END IF
+            END DO LILU0
 C           NEUMAN POLYNOMIAL
           CASE (4)
             CALL SUPCGGLSPOL(NOPT,NTRD,NTRDV,NNZC,NIAC,AC,IAC,JAC,
@@ -1796,7 +1816,8 @@ C---------RETURN
       END SUBROUTINE SUPCGJACA
 
       SUBROUTINE SUPCGPCILU0(NPC,NNZC,NIAC,NIAPC,NIWC,
-     2                       AC,APC,IAC,JAC,IUC,IWC)
+     2                       AC,APC,IAC,JAC,IUC,IWC,
+     3                       IZERO,DELTA)
         IMPLICIT NONE
 C     + + + DUMMY ARGUMENTS + + +
         INTEGER, INTENT(IN) :: NPC
@@ -1810,6 +1831,8 @@ C     + + + DUMMY ARGUMENTS + + +
         INTEGER, DIMENSION(NNZC), INTENT(IN)     :: JAC
         INTEGER, DIMENSION(NIAC), INTENT(IN)     :: IUC
         INTEGER, DIMENSION(NIWC), INTENT(INOUT)  :: IWC
+        INTEGER, INTENT(INOUT) :: IZERO
+        DOUBLEPRECISION, INTENT(IN) :: DELTA
 C     + + + LOCAL DEFINITIONS + + +
         INTEGER :: ic0, ic1, id0, iu1
         INTEGER :: iic0, iic1
@@ -1817,7 +1840,6 @@ C     + + + LOCAL DEFINITIONS + + +
         INTEGER :: jj, nn
         INTEGER :: jpos, jcol, jw
         INTEGER :: id
-        INTEGER :: izero
         DOUBLEPRECISION :: tl
         DOUBLEPRECISION :: t
         DOUBLEPRECISION :: rs
@@ -1825,7 +1847,7 @@ C     + + + LOCAL DEFINITIONS + + +
         DOUBLEPRECISION, PARAMETER :: DONE  = 1.0D0
 C     + + + FUNCTIONS + + +
 C     + + + CODE + + +
-        izero = 0
+        IZERO = 0
         DO n = 1, NIAPC
           APC(n) = AC(n)
         END DO
@@ -1862,13 +1884,14 @@ C     + + + CODE + + +
           END DO LOWER
 C           DIAGONAL - CALCULATE INVERSE OF DIAGONAL FOR SOLUTION
           id0 = IAC(n)
-          tl  = APC(id0) - rs
+          !tl  = APC(id0) - rs
+          tl  = ( DONE + DELTA ) * APC(id0) - rs
           IF ( tl.GT.DZERO ) THEN
             APC(id0) = DONE / tl
           ELSE
-            CALL USTOP('SUPCGPCILU0: tl <= 0.0')
-            !izero = 1
-            !EXIT MAIN
+            !CALL USTOP('SUPCGPCILU0: tl <= 0.0')
+            IZERO = 1
+            EXIT MAIN
             !APC(id0) = 1.0D+20
           END IF
 C           RESET POINTER FOR IW TO ZERO
@@ -1877,12 +1900,12 @@ C           RESET POINTER FOR IW TO ZERO
             IWC(jcol) = 0
           END DO
         END DO MAIN
-C---------REVERT TO A IF ZERO ON DIAGONAL ENCOUNTERED
-        IF ( izero.NE.0 ) THEN
-          DO n = 1, NIAPC
-            APC(n) = AC(n)
-          END DO
-        END IF
+!C---------REVERT TO A IF ZERO ON DIAGONAL ENCOUNTERED
+!        IF ( izero.NE.0 ) THEN
+!          DO n = 1, NIAPC
+!            APC(n) = AC(n)
+!          END DO
+!        END IF
 C---------RETURN
         RETURN
       END SUBROUTINE SUPCGPCILU0

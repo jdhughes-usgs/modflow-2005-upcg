@@ -34,7 +34,7 @@ C
 C        SPECIFICATIONS:
 C     ------------------------------------------------------------------
       USE GLOBAL,      ONLY:IOUT,NCOL,NROW,NLAY,ITRSS,LAYHDT,LAYHDS,
-     1                      CC,CV,IFREFM
+     1                      IACTCELL,CC,CV,IFREFM
       USE GWFBASMODULE,ONLY:HDRY
       USE GWFBCFMODULE,ONLY:IBCFCB,IWDFLG,IWETIT,IHDWET,WETFCT,
      1                      LAYCON,LAYAVG,HY,SC1,SC2,WETDRY,CVWD,TRPY
@@ -236,6 +236,15 @@ C8H-----CAPABILITY HAS BEEN INVOKED (IWDFLG NOT 0).
   130 IF(LAYCON(K).NE.3.AND.LAYCON(K).NE.1)GO TO 200
       IF(IWDFLG.EQ.0)GO TO 200
       CALL U2DREL(WETDRY(:,:,KB),ANAME(7),NROW,NCOL,KK,IN,IOUT)
+C---------UPDATE IACTCELL
+        DO I=1,NROW
+          DO J=1,NCOL
+            IF (WETDRY(J,I,KB).NE.0.0) THEN
+              IACTCELL(J,I,K) = 1
+            END IF
+          END DO
+        END DO
+C---------END UPDATE IACTCELL
   200 CONTINUE
 C
 C9------PREPARE AND CHECK BCF DATA.

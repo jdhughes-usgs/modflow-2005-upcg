@@ -1,6 +1,6 @@
       MODULE GWFSTRMODULE
         INTEGER,SAVE,POINTER   ::MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC
-        INTEGER,SAVE,POINTER   ::ISTCB1,ISTCB2,IPTFLG
+        INTEGER,SAVE,POINTER   ::ISTCB1,ISTCB2,IPTFLG,NSTRVL
         REAL,   SAVE,POINTER   ::CONST
         INTEGER,SAVE,POINTER   ::NPSTR,ISTRPB
         REAL,   SAVE,  POINTER,  DIMENSION(:,:)  ::STRM
@@ -9,9 +9,10 @@
         INTEGER,SAVE,  POINTER,  DIMENSION(:,:)  ::ITRBAR
         INTEGER,SAVE,  POINTER,  DIMENSION(:)    ::IDIVAR
         INTEGER,SAVE,  POINTER,  DIMENSION(:)    ::NDFGAR
+        CHARACTER(LEN=16),SAVE, DIMENSION(:),   POINTER     ::STRAUX
       TYPE GWFSTRTYPE
         INTEGER,POINTER   ::MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC
-        INTEGER,POINTER   ::ISTCB1,ISTCB2,IPTFLG
+        INTEGER,POINTER   ::ISTCB1,ISTCB2,IPTFLG,NSTRVL
         REAL,   POINTER   ::CONST
         INTEGER,POINTER   ::NPSTR,ISTRPB
         REAL,   POINTER,  DIMENSION(:,:)  ::STRM
@@ -20,6 +21,7 @@
         INTEGER,POINTER,  DIMENSION(:,:)  ::ITRBAR
         INTEGER,POINTER,  DIMENSION(:)    ::IDIVAR
         INTEGER,POINTER,  DIMENSION(:)    ::NDFGAR
+        CHARACTER(LEN=16), DIMENSION(:),   POINTER     ::STRAUX
       END TYPE
       TYPE(GWFSTRTYPE), SAVE  ::GWFSTRDAT(10)
       END MODULE GWFSTRMODULE
@@ -34,12 +36,13 @@ C     -----------------------------------------------------------------C
       USE GLOBAL,      ONLY:IOUT,NCOL,NROW,NLAY
       USE GWFSTRMODULE,ONLY:MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC,ISTCB1,
      1                      ISTCB2,IPTFLG,CONST,NPSTR,ISTRPB,
-     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR
+     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR,
+     3                      STRAUX,NSTRVL
 C
       CHARACTER*200 LINE
 C     -----------------------------------------------------------------C
       ALLOCATE(MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC)
-      ALLOCATE(ISTCB1,ISTCB2,IPTFLG)
+      ALLOCATE(ISTCB1,ISTCB2,IPTFLG,NSTRVL)
       ALLOCATE(CONST)
       ALLOCATE(NPSTR,ISTRPB)
 C
@@ -72,9 +75,27 @@ C
       ISTRPB=MXACTS+1
       MXSTRM=MXACTS+MXPS
 C
+C3------READ AUXILIARY VARIABLES.
+      ALLOCATE (STRAUX(20))
+      NAUX=0
+      LLOC=81
+    8 CALL URWORD(LINE,LLOC,ISTART,ISTOP,1,N,R,IOUT,IN)
+      IF(LINE(ISTART:ISTOP).EQ.'AUXILIARY' .OR.
+     1        LINE(ISTART:ISTOP).EQ.'AUX') THEN
+         CALL URWORD(LINE,LLOC,ISTART,ISTOP,1,N,R,IOUT,IN)
+         IF(NAUX.LT.20) THEN
+            NAUX=NAUX+1
+            STRAUX(NAUX)=LINE(ISTART:ISTOP)
+            WRITE(IOUT,12) STRAUX(NAUX)
+   12       FORMAT(1X,'AUXILIARY STREAM VARIABLE: ',A)
+         END IF
+         GO TO 8
+      END IF
+C
 C4------ALLOCATE SPACE FOR STRM, ISTRM, ITRBAR, ARTRIB, IDIVAR,
 C4------AND NDFGAR.
-      ALLOCATE (STRM(11,MXSTRM))
+      NSTRVL=11+NAUX
+      ALLOCATE (STRM(NSTRVL,MXSTRM))
       ALLOCATE (ISTRM(5,MXSTRM))
       ALLOCATE (ITRBAR(NSS,NTRIB))
       ALLOCATE (ARTRIB(NSS))
@@ -96,14 +117,14 @@ C-------READ NAMED PARAMETERS.
           IF (NUMINST.EQ.0) THEN
 C-------READ PARAMETER WITHOUT INSTANCES
             CALL SGWF2STR7R(NLST,MXSTRM,STRM,ISTRM,LSTBEG,IN,
-     &                      IOUT,NCOL,NROW,NLAY,IRDFLG)
+     &             IOUT,NCOL,NROW,NLAY,IRDFLG,20,NSTRVL,STRAUX,NAUX)
           ELSE
 C-------READ INSTANCES
             NINLST=NLST/NUMINST
             DO 10 I=1,NUMINST
               CALL UINSRP(I,IN,IOUT,IP,1)
               CALL SGWF2STR7R(NINLST,MXSTRM,STRM,ISTRM,LSTBEG,IN,
-     &                      IOUT,NCOL,NROW,NLAY,IRDFLG)
+     &             IOUT,NCOL,NROW,NLAY,IRDFLG,20,NSTRVL,STRAUX,NAUX)
               LSTBEG=LSTBEG+NINLST
    10       CONTINUE
           END IF
@@ -127,7 +148,8 @@ C     -----------------------------------------------------------------C
       USE GLOBAL,      ONLY:IOUT,NCOL,NROW,NLAY
       USE GWFSTRMODULE,ONLY:MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC,
      1                      IPTFLG,CONST,NPSTR,ISTRPB,
-     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR
+     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR,
+     3                      STRAUX,NSTRVL
 C     -----------------------------------------------------------------C
       CALL SGWF2STR7PNT(IGRID)
 C
@@ -157,8 +179,9 @@ C3A-----IF THERE ARE NEW NON-PARAMETER STREAM CELLS, READ THEM
      1              I6,') IS GREATER THAN MXACTS(',I6,')')
                CALL USTOP(' ')
             END IF
+            NAUX=NSTRVL-11
             CALL SGWF2STR7R(NSTREM,MXSTRM,STRM,ISTRM,1,IN,IOUT,NCOL,
-     1             NROW,NLAY,IRDFLG)
+     1             NROW,NLAY,IRDFLG,20,NSTRVL,STRAUX,NAUX)
          END IF
       ELSE
 C
@@ -410,10 +433,12 @@ C                                                                      C
 C     SPECIFICATIONS:                                                  C
 C     -----------------------------------------------------------------C
       USE GLOBAL,      ONLY:IOUT,NCOL,NROW,NLAY,IBOUND,BUFF,HNEW
-      USE GWFBASMODULE,ONLY:MSUM,VBVL,VBNM,ICBCFL,DELT
+      USE GWFBASMODULE,ONLY:MSUM,VBVL,VBNM,ICBCFL,DELT,
+     1                      IAUXSV,PERTIM,TOTIM
       USE GWFSTRMODULE,ONLY:MXSTRM,NSTREM,NSS,NTRIB,NDIV,ICALC,ISTCB1,
      1                      ISTCB2,IPTFLG,CONST,
-     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR
+     2                      STRM,ARTRIB,ISTRM,ITRBAR,IDIVAR,NDFGAR,
+     3                      NSTRVL,STRAUX
 C
       CHARACTER*16 TEXT,STRTXT
       DATA   TEXT/'  STREAM LEAKAGE'/
@@ -421,32 +446,39 @@ C
 C     -----------------------------------------------------------------C
       CALL SGWF2STR7PNT(IGRID)
 C                                                                      C
-C1------SET IBD=1 IF BUDGET TERMS SHOULD BE SAVED ON DISK.             C
-      IBD=0
+C1------SET IBD IF BUDGET TERMS SHOULD BE SAVED ON DISK.               C
       RATIN = 0.
       RATOUT = 0.
+      IBD=0
+      IF(ISTCB1.GT.0) IBD=ICBCFL
+C
+C1A-----IF CELL-BY-CELL FLOWS WILL BE SAVED AS A LIST, WRITE HEADER.
+      IF(IBD.EQ.2) THEN
+         NAUX=NSTRVL-11
+         IF(IAUXSV.EQ.0) NAUX=0
+         CALL UBDSV4(KSTP,KPER,TEXT,NAUX,STRAUX,ISTCB1,NCOL,NROW,NLAY,
+     1          NSTREM,IOUT,DELT,PERTIM,TOTIM,IBOUND)
+      END IF
 C                                                                      C
 C2------IF NO REACHES, KEEP ZEROS IN ACCUMULATORS.                     C
       IF(NSTREM.EQ.0) GO TO 600
 C                                                                      C
-C3A-----TEST TO SEE IF CELL-BY-CELL TERMS ARE NEEDED.                  C
-      IF((ICBCFL.EQ.0).OR.(ISTCB1.LE.0)) GO TO 10
+C3A-----CLEAR BUFF IF CELL-BY-CELL TERMS WILL BE STORED IN BUFF.       C
+      IF(IBD.EQ.1) THEN
+        DO 5 IL=1,NLAY
+        DO 5 IR=1,NROW
+        DO 5 IC=1,NCOL
+        BUFF(IC,IR,IL)=0.
+    5   CONTINUE
+      END IF
 C                                                                      C
-C3B-----CELL-BY-CELL TERMS ARE NEEDED, SET IBD AND CLEAR BUFFER.       C
-      IBD = 1
-      DO 5 IL=1,NLAY
-      DO 5 IR=1,NROW
-      DO 5 IC=1,NCOL
-      BUFF(IC,IR,IL)=0.
-    5 CONTINUE
-C                                                                      C
-C3C-----INITIALIZE NDFGAR ARRAY TO ZERO.                               C
+C3B-----INITIALIZE NDFGAR ARRAY TO ZERO.                               C
       DO 7 I=1,NSS
       NDFGAR(I)=0
     7 CONTINUE
 C                                                                      C
 C4------IF THERE ARE STREAMS THEN ACCUMULATE LEAKAGE TO OR FROM THEM.  C
-   10 DO 500 L=1,NSTREM
+      DO 500 L=1,NSTREM
       LL=L-1
 C                                                                      C
 C5---DETERMINE REACH LOCATION.                                         C
@@ -552,6 +584,11 @@ C                                                                      C
 C23-----ADD FLOW RATE TO RATIN IF STREAM DISCHARGES TO AQUIFER.        C
         RATIN=RATIN+FLOBOT
       END IF
+C
+C23A----IF SAVING CELL-BY-CELL FLOWS IN A LIST, WRITE FLOW.
+      IF(IBD.EQ.2) CALL UBDSVB(ISTCB1,NCOL,NROW,IC,IR,IL,FLOBOT,
+     1                  STRM(:,L),NSTRVL,NAUX,12,IBOUND,NLAY)
+C
   500 CONTINUE
 C                                                                      C
 C24-----IF BUDGET TERMS WILL BE SAVED THEN WRITE TO DISK.              C
@@ -632,30 +669,58 @@ C31-----RETURN.                                                        C
       RETURN
       END
       SUBROUTINE SGWF2STR7R(NLST,MXSTRM,STRM,ISTRM,LSTBEG,IN,
-     1          IOUT,NCOL,NROW,NLAY,IRDFLG)
+     1          IOUT,NCOL,NROW,NLAY,IRDFLG,NCAUX,NSTRVL,STRAUX,NAUX)
 C     *****************************************************************C
 C     READ STRM AND ISTRM
 C     *****************************************************************C
 C
 C     SPECIFICATIONS:
 C     -----------------------------------------------------------------C
-      DIMENSION STRM(11,MXSTRM),ISTRM(5,MXSTRM)
+      DIMENSION STRM(NSTRVL,MXSTRM),ISTRM(5,MXSTRM)
+      CHARACTER*16 STRAUX(NCAUX)
+      CHARACTER*200 LABEL
+      CHARACTER*300 LINE
 C     -----------------------------------------------------------------C
 C
 C5------READ AND PRINT DATA FOR EACH STREAM CELL.
-      IF(IRDFLG.EQ.0) WRITE(IOUT,4)
+      IF(IRDFLG.EQ.0) THEN
+C5A-----WRITE 1ST LINE OF LABEL
+        WRITE(IOUT,4)
     4 FORMAT(/,4X,'LAYER   ROW    COL    SEGMENT   REACH   STREAMFLOW',
-     16X,'STREAM    STREAMBED     STREAMBED BOT  STREAMBED TOP',/27X,
-     2'NUMBER   NUMBER                   STAGE   CONDUCTANCE',6X,
-     3'ELEVATION      ELEVATION',/3X,110('-'))
+     16X,'STREAM    STREAMBED     STREAMBED BOT  STREAMBED TOP')
+C5B-----WRITE 2ND LINE OF LABEL
+        LABEL='                          '//
+     2  'NUMBER   NUMBER                   STAGE   CONDUCTANCE'//
+     3  '      ELEVATION      ELEVATION'
+        LENLAB=LEN_TRIM(LABEL)
+        CALL ULSTLB(IOUT,LABEL(1:LENLAB),STRAUX,NCAUX,NAUX)
+      END IF
       N=NLST+LSTBEG-1
       DO 250 II=LSTBEG,N
-      READ(IN,5)K,I,J,ISTRM(4,II),ISTRM(5,II),STRM(1,II),STRM(2,II),
+      READ(IN,'(A)') LINE
+C5C-----READ REQUIRED DATA
+      READ(LINE,5)K,I,J,ISTRM(4,II),ISTRM(5,II),STRM(1,II),STRM(2,II),
      1STRM(3,II),STRM(4,II),STRM(5,II)
     5 FORMAT(5I5,F15.0,4F10.0)
-      IF(IRDFLG.EQ.0) WRITE(IOUT,6)K,I,J,ISTRM(4,II),
-     1ISTRM(5,II),STRM(1,II),STRM(2,II),STRM(3,II),STRM(4,II),STRM(5,II)
-    6 FORMAT(1X,1X,I6,2I7,2I9,7X,G11.4,G12.4,G11.4,4X,2G13.4)
+C5D-----READ AUXILIARY DATA
+      IF(NAUX.GT.0) THEN
+        LLOC=81
+        DO 100 JJ=12,11+NAUX
+        CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,IDUM,STRM(JJ,II),IOUT,IN)
+  100   CONTINUE
+      END IF
+C5E-----WRITE DATA
+      IF(IRDFLG.EQ.0) THEN
+        IF(NAUX.LE.0) THEN
+          WRITE(IOUT,6)K,I,J,ISTRM(4,II),ISTRM(5,II),
+     1    STRM(1,II),STRM(2,II),STRM(3,II),STRM(4,II),STRM(5,II)
+        ELSE
+          WRITE(IOUT,6)K,I,J,ISTRM(4,II),ISTRM(5,II),
+     1    STRM(1,II),STRM(2,II),STRM(3,II),STRM(4,II),STRM(5,II),
+     2    (STRM(JJ,II),JJ=12,11+NAUX)
+        END IF
+      END IF
+    6 FORMAT(1X,1X,I6,2I7,2I9,7X,G11.4,G12.4,G11.4,4X,2G13.4,20G16.4)
       ISTRM(1,II)=K
       ISTRM(2,II)=I
       ISTRM(3,II)=J
@@ -690,6 +755,7 @@ C
         DEALLOCATE(GWFSTRDAT(IGRID)%ISTCB1)
         DEALLOCATE(GWFSTRDAT(IGRID)%ISTCB2)
         DEALLOCATE(GWFSTRDAT(IGRID)%IPTFLG)
+        DEALLOCATE(GWFSTRDAT(IGRID)%NSTRVL)
         DEALLOCATE(GWFSTRDAT(IGRID)%CONST)
         DEALLOCATE(GWFSTRDAT(IGRID)%NPSTR)
         DEALLOCATE(GWFSTRDAT(IGRID)%ISTRPB)
@@ -699,6 +765,7 @@ C
         DEALLOCATE(GWFSTRDAT(IGRID)%ITRBAR)
         DEALLOCATE(GWFSTRDAT(IGRID)%IDIVAR)
         DEALLOCATE(GWFSTRDAT(IGRID)%NDFGAR)
+        DEALLOCATE(GWFSTRDAT(IGRID)%STRAUX)
 C
       RETURN
       END
@@ -715,6 +782,7 @@ C
         ISTCB1=>GWFSTRDAT(IGRID)%ISTCB1
         ISTCB2=>GWFSTRDAT(IGRID)%ISTCB2
         IPTFLG=>GWFSTRDAT(IGRID)%IPTFLG
+        NSTRVL=>GWFSTRDAT(IGRID)%NSTRVL
         CONST=>GWFSTRDAT(IGRID)%CONST
         NPSTR=>GWFSTRDAT(IGRID)%NPSTR
         ISTRPB=>GWFSTRDAT(IGRID)%ISTRPB
@@ -724,6 +792,7 @@ C
         ITRBAR=>GWFSTRDAT(IGRID)%ITRBAR
         IDIVAR=>GWFSTRDAT(IGRID)%IDIVAR
         NDFGAR=>GWFSTRDAT(IGRID)%NDFGAR
+        STRAUX=>GWFSTRDAT(IGRID)%STRAUX
 C
       RETURN
       END
@@ -740,6 +809,7 @@ C
         GWFSTRDAT(IGRID)%ISTCB1=>ISTCB1
         GWFSTRDAT(IGRID)%ISTCB2=>ISTCB2
         GWFSTRDAT(IGRID)%IPTFLG=>IPTFLG
+        GWFSTRDAT(IGRID)%NSTRVL=>NSTRVL
         GWFSTRDAT(IGRID)%CONST=>CONST
         GWFSTRDAT(IGRID)%NPSTR=>NPSTR
         GWFSTRDAT(IGRID)%ISTRPB=>ISTRPB
@@ -749,6 +819,7 @@ C
         GWFSTRDAT(IGRID)%ITRBAR=>ITRBAR
         GWFSTRDAT(IGRID)%IDIVAR=>IDIVAR
         GWFSTRDAT(IGRID)%NDFGAR=>NDFGAR
+        GWFSTRDAT(IGRID)%STRAUX=>STRAUX
 C
       RETURN
       END

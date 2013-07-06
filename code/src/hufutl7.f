@@ -223,7 +223,7 @@ C     ------------------------------------------------------------------
      
 C
 C Loop through parameters
-      DO 250 NP=1,MXPAR
+      DO 250 NP=1,IPSUM
         IF(PARTYP(NP).EQ.'LVDA') THEN
 C Loop through layers that apply to this parameter
           DO 300 ND=IPLOC(1,NP),IPLOC(2,NP)
@@ -258,7 +258,7 @@ C     ------------------------------------------------------------------
       DIMENSION HUFARRAY(NHUF)
 C
 C Loop through parameters
-      DO 250 NP=1,MXPAR
+      DO 250 NP=1,IPSUM
         PTEMP=PARTYP(NP)
         IF(PTEMP.EQ.PTYPE) THEN
 C Loop through units that apply to this parameter

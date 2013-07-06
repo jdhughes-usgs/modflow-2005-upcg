@@ -66,7 +66,7 @@ C
 C        SPECIFICATIONS:
 C     ------------------------------------------------------------------
       USE GLOBAL,      ONLY:NCOL,NROW,NLAY,BOTM,ITRSS,LAYHDT,LAYHDS,
-     1                      IOUT,ISSFLG,NPER,IBOUND,LBOTM
+     1                      IOUT,ISSFLG,NPER,IBOUND,IACTCELL,LBOTM
       USE GWFBASMODULE,ONLY:HDRY
       USE GWFHUFMODULE,ONLY:IHUFCB,NHUF,NPHUF,IWETIT,IHDWET,IOHUFHDS,
      1                      IOHUFFLWS,WETFCT,HGUNAM,LTHUF,LAYWT,
@@ -307,6 +307,15 @@ C2H-----(LAYWT NOT 0).
       IF(LAYWT(K).NE.0) THEN
          CALL U2DREL(WETDRY(:,:,LAYWT(K)),ANAME(8),NROW,NCOL,K,IN,
      &            IOUT)
+C---------UPDATE IACTCELL
+        DO I=1,NROW
+          DO J=1,NCOL
+            IF (WETDRY(J,I,LAYWT(K)).NE.0.0) THEN
+              IACTCELL(J,I,K) = 1
+            END IF
+          END DO
+        END DO
+C---------END UPDATE IACTCELL
       END IF
   300 CONTINUE
 
@@ -572,9 +581,11 @@ C   IF CONVERTIBLE LAYER GET PRIMARY STORAGE
                 KK = KK + 1
               END IF
             END DO UPLAY
-            IF(LTHUF(K).NE.0) THEN
-              IF ( K.GT.0 ) THEN
-! TRICK SUBROUTINE TO THINK UPERMOST LAYER IS UNCONFINED
+C            IF(LTHUF(K).NE.0) THEN
+C              IF ( K.GT.0 ) THEN
+            IF ( K.GT.0 ) THEN
+              IF(LTHUF(K).NE.0) THEN
+! TRICK SUBROUTINE TO THINK UPPERMOST LAYER IS UNCONFINED
                 TOP=BOTM(J,I,LBOTM(K)-1)
                 BOT=BOTM(J,I,LBOTM(K))
                 HO=TOP-1.0E-1
@@ -753,6 +764,9 @@ C       computing SC1 that every layer is confined
             IFLG=0
             CALL SGWF2HUF7HSRCH(NCOL,NROW,NLAY,BOTM,NBOTM,I,J,TOPU,BOTU,
      &                        HNEW,IBOUND,KT,KB,IFLG)
+C-----Note that a check for IFLG=1 is not needed here, as such a
+C        condition would have been caught after the earlier call
+C        to subroutine SGWF2HUF7HSRCH
 C-----Populate SC1 array
             CALL SGWF2HUF7SC1(NCOL,NROW,NLAY,BOTM,NBOTM,I,J,TOPU,
      &                        BOTU,SC1,HUFSS,KT,KB,NHUF,NU)
@@ -2484,7 +2498,8 @@ C4B-----FOR EACH CELL CALCULATE FLOW THRU FRONT FACE & STORE IN BUFFER.
       IF(ILVDA.GT.0) THEN
         CALL SGWF2HUF7VDF9(I,J,K,VDHT,HNEW,IBOUND,NLAY,NROW,NCOL,
      &                 DFL,DFR,DFT,DFB)
-        BUFF(J,I,K) = DFT
+C        BUFF(J,I,K) = DFT
+        BUFF(J,I,K) = DFB
       ELSE
         HDIFF=HNEW(J,I,K)-HNEW(J,I+1,K)
         BUFF(J,I,K)=HDIFF*CC(J,I,K)
@@ -3007,15 +3022,19 @@ C        WRITE(IHUFCB) HNWHGU
       IF(IBD.EQ.2) THEN
 C
 C1------WRITE TWO UNFORMATTED RECORDS IDENTIFYING DATA.
-        IF(IOUT.GT.0) WRITE(IOUT,2) TEXT(ICNT),IHUFCB,KSTP,KPER
-    2   FORMAT(1X,'SGWF2HUF7FLOT SAVING "',A16,'" ON UNIT',I4,
-     &       ' AT TIME STEP',I3,', STRESS PERIOD',I3)
-        WRITE(IHUFCB) KSTP,KPER,TEXT(ICNT),NCOL,NROW,NHUF
-        WRITE(IHUFCB) 1,DELT,PERTIM,TOTIM
-C
-C2------WRITE AN UNFORMATTED RECORD CONTAINING VALUES FOR
-C2------EACH CELL IN THE GRID.
-        WRITE(IHUFCB) HNWHGU
+        CALL UBDSV1(KSTP,KPER,TEXT(ICNT),
+     &                   IHUFCB,HNWHGU,NCOL,NROW,NHUF,IOUT,
+     &                   DELT,PERTIM,TOTIM,IBOUND)
+C        IF(IOUT.GT.0) WRITE(IOUT,2) TEXT(ICNT),IHUFCB,KSTP,KPER
+C    2   FORMAT(1X,'SGWF2HUF7FLOT SAVING "',A16,'" ON UNIT',I4,
+C     &       ' AT TIME STEP',I3,', STRESS PERIOD',I3)
+C        WRITE(IHUFCB) KSTP,KPER,TEXT(ICNT),NCOL,NROW,NHUF
+C        WRITE(IHUFCB) 1,DELT,PERTIM,TOTIM
+CC
+CC
+CC2------WRITE AN UNFORMATTED RECORD CONTAINING VALUES FOR
+CC2------EACH CELL IN THE GRID.
+C        WRITE(IHUFCB) HNWHGU
       ENDIF
 
    50 CONTINUE
@@ -3554,7 +3573,7 @@ C     ------------------------------------------------------------------
 5       indx(l+1)=indx(j)
         indx(j)=indxt
         jstack=jstack+2
-        if(jstack.gt.NSTACK)pause 'NSTACK too small in indexx'
+        if(jstack.gt.NSTACK) call ustop('NSTACK too small in indexx')
         if(ir-i+1.ge.j-l)then
           istack(jstack)=ir
           istack(jstack-1)=i

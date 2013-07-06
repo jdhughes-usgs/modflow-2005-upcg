@@ -13,3 +13,12 @@
 *.aux
 *.log
 *.gz
+*.filters
+_UpgradeReport_Files
+/code/Debug
+/code/ipch
+/code/Release
+*.pdb
+/code/src/mf2005-GPU.0.f
+*.suo
+*.sdf
