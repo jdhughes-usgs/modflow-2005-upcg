@@ -26,6 +26,7 @@
         INTEGER,SAVE,POINTER  :: NITERC,NNZC,NIAC
         INTEGER,SAVE,POINTER  :: NIAPC,NIWC,NPOL,NEIG
         REAL   ,SAVE,POINTER  :: HCLOSEUPCG,RCLOSEUPCG
+        REAL   ,SAVE,POINTER  :: RELAXUPCG,DAMPUPCG,DAMPUPCGT
         DOUBLE PRECISION, SAVE, POINTER :: UPCGTOTT, UPCGFMAT
         DOUBLE PRECISION, SAVE, POINTER :: UPCGPCUT, UPCGPCAT
         DOUBLE PRECISION, SAVE, POINTER :: UPCGDPT, UPCGMVT
@@ -43,6 +44,7 @@
         INTEGER,          SAVE, POINTER, DIMENSION(:)     :: IXMAP
 C         WORKING ARRAYS        
         INTEGER,         SAVE, POINTER, DIMENSION(:)      :: IWC
+        DOUBLEPRECISION, SAVE, POINTER, DIMENSION(:,:,:)  :: HUPCG
         DOUBLEPRECISION, SAVE, POINTER, DIMENSION(:)      :: DC
         DOUBLEPRECISION, SAVE, POINTER, DIMENSION(:)      :: PC
         DOUBLEPRECISION, SAVE, POINTER, DIMENSION(:)      :: QC
@@ -67,6 +69,7 @@ C         GPU POINTERS
         INTEGER,POINTER  :: NITERC,NNZC,NIAC
         INTEGER,POINTER  :: NIAPC,NIWC,NPOL,NEIG
         REAL   ,POINTER  :: HCLOSEUPCG,RCLOSEUPCG
+        REAL   ,POINTER  :: RELAXUPCG,DAMPUPCG,DAMPUPCGT
         DOUBLE PRECISION, POINTER :: UPCGTOTT, UPCGFMAT
         DOUBLE PRECISION, POINTER :: UPCGPCUT, UPCGPCAT
         DOUBLE PRECISION, POINTER :: UPCGDPT, UPCGMVT
@@ -82,8 +85,9 @@ C         GPU POINTERS
         INTEGER,          POINTER, DIMENSION(:)     :: JAC
         INTEGER,          POINTER, DIMENSION(:)     :: IUC
         INTEGER,          POINTER, DIMENSION(:)     :: IXMAP
-C         WORKING ARRAYS        
+C         WORKING ARRAYS
         INTEGER,         POINTER, DIMENSION(:)      :: IWC
+        DOUBLEPRECISION, POINTER, DIMENSION(:,:,:)  :: HUPCG
         DOUBLEPRECISION, POINTER, DIMENSION(:)      :: DC
         DOUBLEPRECISION, POINTER, DIMENSION(:)      :: PC
         DOUBLEPRECISION, POINTER, DIMENSION(:)      :: QC
@@ -137,6 +141,7 @@ C     ------------------------------------------------------------------
       ALLOCATE( NITERC,NNZC,NIAC,NIAPC,NIWC )
       ALLOCATE( NPOL,NEIG )
       ALLOCATE( HCLOSEUPCG, RCLOSEUPCG )
+      ALLOCATE( RELAXUPCG, DAMPUPCG, DAMPUPCGT )
       ALLOCATE( UPCGTOTT, UPCGFMAT )
       ALLOCATE( UPCGPCUT, UPCGPCAT, UPCGDPT, UPCGMVT )
       ALLOCATE( UPCGAXPYT, UPCGVVPT, UPCGMISCT )
@@ -236,6 +241,14 @@ C-------READ HCLOSEPCG,RCLOSEPCG,RELAXPCG,NBPOL,IPRPCG,MUTPCG
       LLOC=1
       CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,I,HCLOSEUPCG,IOUT,IN)
       CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,I,RCLOSEUPCG,IOUT,IN)
+      CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,I,RELAXUPCG,IOUT,IN)
+      CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,I,DAMPUPCG,IOUT,IN)
+      IF ( DAMPUPCG.LT.0 ) THEN
+        DAMPUPCG = ABS(DAMPUPCG)
+        CALL URWORD(LINE,LLOC,ISTART,ISTOP,3,I,DAMPUPCGT,IOUT,IN)
+      ELSE
+        DAMPUPCGT = DAMPUPCG
+      END IF
       IF ( HCLOSEUPCG.LE.0.0 ) THEN
           WRITE (IOUT,'(//,A)') 'UPCG7AR: HCLOSE MUST BE > 0.0'
           CALL USTOP('UPCG7AR: HCLOSE MUST BE > 0.0')
@@ -243,6 +256,18 @@ C-------READ HCLOSEPCG,RCLOSEPCG,RELAXPCG,NBPOL,IPRPCG,MUTPCG
       IF ( RCLOSEUPCG.LE.0.0 ) THEN
           WRITE (IOUT,'(//,A)') 'UPCG7AR: RCLOSE MUST BE > 0.0'
           CALL USTOP('UPCG7AR: RCLOSE MUST BE > 0.0')
+      END IF
+      IF ( RELAXUPCG.LE.0.0 ) THEN
+          WRITE (IOUT,'(//,A)') 'UPCG7AR: RELAXUPCG MUST BE > 0.0'
+          CALL USTOP('UPCG7AR: RELAXUPCG MUST BE > 0.0')
+      END IF
+      IF ( DAMPUPCG.LE.0.0 ) THEN
+          WRITE (IOUT,'(//,A)') 'UPCG7AR: DAMPUPCG MUST BE > 0.0'
+          CALL USTOP('UPCG7AR: DAMPUPCG MUST BE > 0.0')
+      END IF
+      IF ( DAMPUPCGT.LE.0.0 ) THEN
+          WRITE (IOUT,'(//,A)') 'UPCG7AR: DAMPUPCGT MUST BE > 0.0'
+          CALL USTOP('UPCG7AR: DAMPUPCGT MUST BE > 0.0')
       END IF
 C
 C-------PRINT MXITER,ITER1C,NPC,HCLOSEPCG,RCLOSEPCG,NPC,NOPT
@@ -260,9 +285,15 @@ C-------MUTPCG,DAMPPCG
   535 FORMAT (1X,6X,'HEAD CHANGE CRITERION FOR CLOSURE =',E15.5)
       WRITE (IOUT,540) RCLOSEUPCG
   540 FORMAT (1X,2X,'RESIDUAL CHANGE CRITERION FOR CLOSURE =',E15.5)
+      WRITE (IOUT,545) RELAXUPCG
+  545 FORMAT (1X,22X,'RELAXATION FACTOR =',E15.5,/,
+     &        1X,1X,'ONLY USED WITH MILU0 PRECOND. (NPC = 3)')
+      WRITE (IOUT,550) DAMPUPCG,DAMPUPCGT
+  550 FORMAT (1X,9X,'STEADY-STATE DAMPING PARAMETER =',E15.5
+     &       /1X,12X,'TRANSIENT DAMPING PARAMETER =',E15.5)
 C
-      WRITE (IOUT,545) NPC, NOPT
-  545 FORMAT (/1X,75('-'),/,
+      WRITE (IOUT,555) NPC, NOPT
+  555 FORMAT (/1X,75('-'),/,
      &        19X,' MATRIX PRECONDITIONING TYPE :',I5,/,
      &        19X,'   NONE      : NPC = 0',/,
      &        19X,'   JACOBI    : NPC = 1',/,
@@ -274,6 +305,9 @@ C
      &        19X,'   CPU - OMP : NOPT = 2',/,
      &        19X,'   GPU - CUDA: NOPT = 3',/,
      &        1X,75('-'))
+C
+C-------ALLOCATE TEMPORARY STORAGE FOR HUPCG USED FOR DAMPENING     
+      ALLOCATE(HUPCG(NCOL,NROW,NLAY))
 C
 C-------INITIALIZE NITERC  
       NITERC = 0
@@ -461,23 +495,23 @@ C       INITIALIZE POLYNOMIAL PRECONDITIONER WORKING ARRAYS
 C
 C-------PRINT POLYNOMIAL PRECONDITIONER INFORMATION
       IF ( NPC.EQ.4 ) THEN
-        WRITE (IOUT,550) GLSPOLY%NDEGREE
+        WRITE (IOUT,560) GLSPOLY%NDEGREE
         IF ( GLSPOLY%IEIGCALC.NE.0 ) THEN
-          WRITE (IOUT,555) GLSPOLY%NLANSTEP
+          WRITE (IOUT,565) GLSPOLY%NLANSTEP
         ELSE
-          WRITE (IOUT,560)
+          WRITE (IOUT,570)
         END IF
-        WRITE (IOUT,565)
+        WRITE (IOUT,575)
       END IF  
-  550 FORMAT (/1X,75('-'),/,
+  560 FORMAT (/1X,75('-'),/,
      &        13X,' GENERAL LEAST-SQUARES POLYNOMIAL PRECONDITIONER',/,
      &        13X,'   DEGREE POLYNOMIAL = ',I5,/,
      &        13X,'   DIAGONAL RESCALING APPLIED')
-  555 FORMAT (13X,'   LANCZOS STEPS     = ',I5,/,
+  565 FORMAT (13X,'   LANCZOS STEPS     = ',I5,/,
      &        13X,'     MAY HAVE BEEN REDUCED TO PROBLEM SIZE')
-  560 FORMAT (13X,'   MAX. AND MIN. EIGENVALUES ASSUMED TO BE',/,
+  570 FORMAT (13X,'   MAX. AND MIN. EIGENVALUES ASSUMED TO BE',/,
      &        13X,'     2.0 AND 0.0, RESPECTIVELY.')
-  565 FORMAT (1X,75('-'))
+  575 FORMAT (1X,75('-'))
 C
 C-------FILL IA AND JA
       IND = 0
@@ -669,7 +703,7 @@ C           EXECUTION TIMES
           NTRDV = ntdp
 C
 C         WRITE SUMMARY OF THE AVERAGE TIME TO COMPLETE OPENMP OPERATIONS
-          WRITE (IOUT,570) nop,  
+          WRITE (IOUT,580) nop,  
      2                     tserialc,  tompc,  suc,
      3                     tserialdp, tompdp, sudp,
      4                     tserialmv, tompmv, sumv,
@@ -680,14 +714,14 @@ C         WRITE SUMMARY OF THE AVERAGE TIME TO COMPLETE OPENMP OPERATIONS
 C
 C---------WRITE SUMMARY OF THREADS BEING USED FOR OPEN MP 
 C         SMV AND VECTOR OPERATIONS
-        WRITE (IOUT,575) NTRDV, NTRD
+        WRITE (IOUT,585) NTRDV, NTRD
 C
 C---------SET MAXIMUM NUMBER OF THREADS
         NTRDMAX = MAX( NTRD, NTRDV )
         !CALL OMP_SET_NUM_THREADS( NTRDMAX )
       END IF TSTOMP
 C      
-  570 FORMAT (/1X,75('-'),
+  580 FORMAT (/1X,75('-'),
      &        /34X,'OPEN MP',
      &        /23X,'AVERAGE TIME FOR',1X,I3,1X,'OPERATIONS',
      &        /47X,'TIME',
@@ -703,7 +737,7 @@ C
      &        /12X,' NUMBER OF ACTIVE CELLS       :',I10,
      &        /12X,' NUMBER OF NON-ZERO ENTRIES   :',I10,
      &        /1X,75('-'))
-  575 FORMAT (/1X,75('-'),
+  585 FORMAT (/1X,75('-'),
      &        /19X,' NUMBER OF OPENMP   V THREADS :',I5,
      &        /19X,' NUMBER OF OPENMP SMV THREADS :',I5,
      &        /1X,75('-'))
@@ -737,17 +771,19 @@ C-------RETURN
       RETURN
       END SUBROUTINE UPCG7AR
       
-      SUBROUTINE UPCG7AP(HNEW,IBOUND,IACTCELL,CR,CC,CV,HCOF,RHS,
+      SUBROUTINE UPCG7AP(NODES,HNEW,IBOUND,IACTCELL,
+     &                 CR,CC,CV,HCOF,RHS,
      &                 ICNVG,KSTP,KPER,MXITER,KITER,
-     &                 NCOL,NROW,NLAY,NODES,HNOFLO,IOUT,
+     &                 NCOL,NROW,NLAY,HNOFLO,IOUT,
      &                 NPC,NOPT,NTRD,NTRDV,NITER,ITER1,NNZC,NIAC,
      &                 NIAPC,NIWC,NPOL,NEIG,
      &                 HCLOSE,RCLOSE,
+     &                 ISS,RELAX,DAMP,DAMPT,
      &                 UPCGTOTT,UPCGFMAT,
      &                 UPCGPCUT,UPCGPCAT,UPCGDPT,UPCGMVT,
      &                 UPCGAXPYT,UPCGVVPT,UPCGMISCT,UPCGGPUTT,
      &                 IUPCGO,IUPCGI,
-     &                 NODEC,BC,XC,AC,APC,IAC,JAC,IUC,IXMAP,IWC,
+     &                 NODEC,BC,XC,AC,APC,IAC,JAC,IUC,IXMAP,IWC,HSAV,
      &                 DC,ZC,PC,QC,ISCL,SCL,SCLI,GLSPOLY,
      &                 CU_HDL,CU_STAT,CU_DES,CU_JAC,CU_IAC,
      &                 CU_AC,CU_APC,CU_XC,
@@ -766,6 +802,7 @@ C     ------------------------------------------------------------------
      2                      DTDP, DTMV, DTAXPY, DTVVP, DTMISC
       IMPLICIT NONE
 C     + + + DUMMY ARGUMENTS + + +
+      INTEGER, INTENT(IN)                              :: NODES
       DOUBLEPRECISION, DIMENSION(NODES), INTENT(INOUT) :: HNEW
       INTEGER, DIMENSION(NODES), INTENT(INOUT)         :: IBOUND
       INTEGER, DIMENSION(NODES), INTENT(IN)            :: IACTCELL
@@ -782,7 +819,6 @@ C     + + + DUMMY ARGUMENTS + + +
       INTEGER, INTENT(IN)                              :: NCOL
       INTEGER, INTENT(IN)                              :: NROW
       INTEGER, INTENT(IN)                              :: NLAY
-      INTEGER, INTENT(IN)                              :: NODES
       REAL, INTENT(IN)                                 :: HNOFLO
       INTEGER, INTENT(IN)                              :: IOUT
       INTEGER, INTENT(IN)                              :: NPC
@@ -799,6 +835,10 @@ C     + + + DUMMY ARGUMENTS + + +
       INTEGER, INTENT(IN)                              :: NEIG
       REAL, INTENT(IN)                                 :: HCLOSE
       REAL, INTENT(IN)                                 :: RCLOSE
+      INTEGER, INTENT(IN)                              :: ISS
+      REAL, INTENT(IN)                                 :: RELAX
+      REAL, INTENT(IN)                                 :: DAMP
+      REAL, INTENT(IN)                                 :: DAMPT
       DOUBLEPRECISION, INTENT(INOUT)                   :: UPCGTOTT
       DOUBLEPRECISION, INTENT(INOUT)                   :: UPCGFMAT
       DOUBLEPRECISION, INTENT(INOUT)                   :: UPCGPCUT
@@ -822,6 +862,7 @@ C     + + + DUMMY ARGUMENTS + + +
       INTEGER, DIMENSION(NIAC), INTENT(IN)             :: IXMAP
 C       WORKING ARRAYS
       INTEGER, DIMENSION(NIWC), INTENT(INOUT)          :: IWC
+      DOUBLEPRECISION, DIMENSION(NODES), INTENT(INOUT) :: HSAV
       DOUBLEPRECISION, DIMENSION(NIAC), INTENT(INOUT)  :: DC
       DOUBLEPRECISION, DIMENSION(NIAC), INTENT(INOUT)  :: PC
       DOUBLEPRECISION, DIMENSION(NIAC), INTENT(INOUT)  :: QC
@@ -869,8 +910,10 @@ C     + + + LOCAL DEFINITIONS + + +
       INTEGER :: irc
       INTEGER :: iicnvg
       INTEGER :: nx, nr
+      INTEGER :: ich
 
       DOUBLE PRECISION :: dhclose, drclose
+      DOUBLE PRECISION :: drelax,ddamp
       DOUBLE PRECISION :: rrhs, hhcof, rsq, fbar, fmax
       DOUBLE PRECISION :: z, b, d, e, f, h, s
       DOUBLE PRECISION :: zhnew, bhnew, dhnew, fhnew, hhnew, shnew
@@ -915,8 +958,23 @@ C       SET LOCAL VARIABLES
       ieq     = 0
       fmax    = dzero
       ncount  = 0
-      dhclose = REAL( hclose, 8 )
-      drclose = REAL( rclose, 8 )
+      dhclose = REAL( HCLOSE, 8 )
+      drclose = REAL( RCLOSE, 8 )
+      drelax  = REAL( RELAX, 8 )
+      IF(ISS.EQ.0) THEN
+        ddamp = REAL( DAMPT, 8 )
+      ELSE
+        ddamp = REAL( DAMP, 8 )
+      END IF
+C
+C-------STORE PREVIOUS HEAD IF MXITER>1      
+      IF ( MXITER.GT.1 ) THEN
+        DO n = 1,NODES
+          HSAV(n) = HNEW(n)
+        END DO
+      END IF
+C
+C-------INITIALIZE PRECONDITIONER
       DO n = 1, NNZC
         AC(n) = DZERO
       END DO
@@ -980,109 +1038,150 @@ C
 C                 TOP FACE
 C-----------------NEIGHBOR IS 1 LAYER BEHIND
                 IF ( k.NE.1 ) THEN
+                    ich = 0
                     z = CV(nlz)
                     IF ( IACTCELL(nll).GT.0 ) THEN
                       iapos = iapos + 1
                       IF ( IBOUND(nll).GT.0 ) THEN
                         AC(iapos) = -z
+                      ELSE IF ( IBOUND(nll).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         z = dzero
                       END IF
                     ELSE
                       IF( IBOUND(nll).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + z*HNEW(nll) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + z*HNEW(nll) 
                       END IF
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + z*HNEW(nll) 
                     END IF
                 END IF
 C
 C                 UPPER FACE
 C-----------------NEIGHBOR IS 1 ROW BACK
                 IF ( i.NE.1 ) THEN
+                    ich = 0
                     b = CC(nrb)
                     IF ( IACTCELL(nrl).NE.0 ) THEN
-                      e = e + b
                       iapos = iapos + 1
                       IF( IBOUND(nrl).GT.0 ) THEN
                         AC(iapos) = -b
+                      ELSE IF( IBOUND(nrl).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         b = dzero
                       END IF
                     ELSE
                       IF( IBOUND(nrl).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + b*HNEW(nrl) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + b*HNEW(nrl) 
                       END IF 
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + b*HNEW(nrl) 
                     END IF
                 END IF
 C
 C                 LEFT FACE
 C-----------------NEIGHBOR IS 1 COLUMN BACK
                 IF ( j.NE.1 ) THEN
+                    ich = 0
                     d = CR(ncd)
                     IF ( IACTCELL(ncl).NE.0 ) THEN
                       iapos = iapos + 1
                       IF( IBOUND(ncl).GT.0 ) THEN
                         AC(iapos) = -d
+                      ELSE IF( IBOUND(ncl).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         d = dzero
                       END IF
                     ELSE
                       IF( IBOUND(ncl).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + d*HNEW(ncl) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + d*HNEW(ncl) 
                       END IF 
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + d*HNEW(ncl) 
                     END IF
                 END IF
 C
 C                 RIGHT FACE
 C-----------------NEIGHBOR IS 1 COLUMN AHEAD
                 IF ( j.NE.NCOL ) THEN
+                    ich = 0
                     f = CR(ncf)
                     IF ( IACTCELL(ncn).NE.0 ) THEN
                       iapos = iapos + 1
                       IF( IBOUND(ncn).GT.0 ) THEN
                         AC(iapos) = -f
+                      ELSE IF( IBOUND(ncn).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         f = dzero
                       END IF
                     ELSE
                       IF( IBOUND(ncn).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + f*HNEW(ncn) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + f*HNEW(ncn) 
                       END IF
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + f*HNEW(ncn) 
                     END IF
                 END IF
 C
 C                 LOWER FACE
 C-----------------NEIGHBOR IS 1 ROW AHEAD
                 IF ( i.NE.NROW ) THEN
+                    ich = 0
                     h = CC(nrh)
                     IF ( IACTCELL(nrn).NE.0 ) THEN
                       iapos = iapos + 1
                       IF( IBOUND(nrn).GT.0 ) THEN
                         AC(iapos) = -h
+                      ELSE IF( IBOUND(nrn).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         h = dzero
                       END IF
                     ELSE
                       IF( IBOUND(nrn).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + h*HNEW(nrn) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + h*HNEW(nrn) 
                       END IF 
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + h*HNEW(nrn) 
                     END IF
                 END IF
 C
 C                 BOTTOM FACE
 C-----------------NEIGHBOR IS 1 LAYER AHEAD
                 IF ( k.NE.NLAY ) THEN
+                    ich = 0
                     s = CV(nls)
                     IF ( IACTCELL(nln).NE.0 ) THEN
                       iapos = iapos + 1
                       IF( IBOUND(nln).GT.0 ) THEN
                         AC(iapos) = -s
+                      ELSE IF( IBOUND(nln).LT.0 ) THEN
+                        ich = 1
                       ELSE
                         h = dzero
                       END IF
                     ELSE
                       IF( IBOUND(nln).LT.0 ) THEN
-                        BC(ieq) = BC(ieq) + s*HNEW(nln) 
+                        ich = 1
+                        !BC(ieq) = BC(ieq) + s*HNEW(nln) 
                       END IF
+                    END IF
+                    IF ( ich.EQ.1 ) THEN
+                      BC(ieq) = BC(ieq) + s*HNEW(nln) 
                     END IF
                 END IF
 C    
@@ -1102,7 +1201,7 @@ C---------------END IBOUND(N) .GT. 0
 C
 C---------------IF INACTIVE OR CONSTANT HEAD, SET DIAGONAL TO 1.0, AND ADJUST RHS ACCORDINGLY.  
               IF ( iinactive.EQ.1 ) THEN
-                e = done
+                e = DONE
                 BC(ieq) = HNEW(n)
               END IF
 C
@@ -1130,7 +1229,7 @@ C       SCALE MATRIX FOR POLYNOMIAL PRECONDITIONER
         CALL SUPCGSCL(1,NNZC,NIAC,AC,XC,BC,SCL,SCLI,IAC,JAC)
       END IF
       CALL SUPCGPCU(IOUT,NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
-     2              AC,APC,IAC,JAC,IUC,IWC,
+     2              AC,APC,IAC,JAC,IUC,IWC,drelax,
      3              GLSPOLY)
       CALL SUPCGTIMER(1,tpcu1,UPCGPCUT)
 C
@@ -1295,6 +1394,14 @@ C-------IF END OF TIME STEP, PRINT # OF ITERATIONS THIS STEP
         ITER1 = 0
       ENDIF
 C
+C-------AT END OF EXTERNAL ITERATION, APPLY DAMP
+      IF ( MXITER.GT.1 ) THEN
+        DO n = 1, NODES
+          IF ( IBOUND(n).LE.0 ) CYCLE
+          HNEW(n) = ( DONE - ddamp ) * HSAV(n) + ddamp * HNEW(n)
+        END DO
+      END IF
+C
 C       SET DUMMY ARGUMENT TIMER VARIABLES TO CURRENT VALUE OF
 C       TEMPORARY TIMER VARIABLES
       UPCGDPT     = DTDP
@@ -1422,6 +1529,7 @@ C         DEALLOCATE UPCG MEMORY
         DEALLOCATE(NITERC,NNZC,NIAC)
         DEALLOCATE(NIAPC,NIWC,NPOL,NEIG)
         DEALLOCATE(HCLOSEUPCG,RCLOSEUPCG)
+        DEALLOCATE(RELAXUPCG,DAMPUPCG,DAMPUPCGT)
         DEALLOCATE(UPCGTOTT,UPCGFMAT)
         DEALLOCATE(UPCGPCUT,UPCGPCAT,UPCGDPT,UPCGMVT)
         DEALLOCATE(UPCGAXPYT,UPCGVVPT,UPCGMISCT)
@@ -1439,6 +1547,7 @@ C         DEALLOCATE UPCG MEMORY
         DEALLOCATE(IXMAP)
 C       WORKING ARRAYS
         DEALLOCATE(IWC)
+        DEALLOCATE(HUPCG)
         DEALLOCATE(DC)
         DEALLOCATE(PC)
         DEALLOCATE(QC)
@@ -1477,6 +1586,9 @@ C
       NEIG=>UPCGDAT(IGRID)%NEIG
       HCLOSEUPCG=>UPCGDAT(IGRID)%HCLOSEUPCG
       RCLOSEUPCG=>UPCGDAT(IGRID)%RCLOSEUPCG
+      RELAXUPCG=>UPCGDAT(IGRID)%RELAXUPCG
+      DAMPUPCG=>UPCGDAT(IGRID)%DAMPUPCG
+      DAMPUPCGT=>UPCGDAT(IGRID)%DAMPUPCGT
       UPCGTOTT=>UPCGDAT(IGRID)%UPCGTOTT
       UPCGFMAT=>UPCGDAT(IGRID)%UPCGFMAT
       UPCGPCUT=>UPCGDAT(IGRID)%UPCGPCUT
@@ -1501,6 +1613,7 @@ C
       IXMAP=>UPCGDAT(IGRID)%IXMAP
 C       WORKING ARRAYS
       IWC=>UPCGDAT(IGRID)%IWC
+      HUPCG=>UPCGDAT(IGRID)%HUPCG
       DC=>UPCGDAT(IGRID)%DC
       PC=>UPCGDAT(IGRID)%PC
       QC=>UPCGDAT(IGRID)%QC
@@ -1552,6 +1665,9 @@ C
       UPCGDAT(IGRID)%NEIG=>NEIG
       UPCGDAT(IGRID)%HCLOSEUPCG=>HCLOSEUPCG
       UPCGDAT(IGRID)%RCLOSEUPCG=>RCLOSEUPCG
+      UPCGDAT(IGRID)%RELAXUPCG=>RELAXUPCG
+      UPCGDAT(IGRID)%DAMPUPCG=>DAMPUPCG
+      UPCGDAT(IGRID)%DAMPUPCGT=>DAMPUPCG
       UPCGDAT(IGRID)%UPCGTOTT=>UPCGTOTT
       UPCGDAT(IGRID)%UPCGFMAT=>UPCGFMAT
       UPCGDAT(IGRID)%UPCGPCUT=>UPCGPCUT
@@ -1576,6 +1692,7 @@ C
       UPCGDAT(IGRID)%IXMAP=>IXMAP
 C       WORKING ARRAYS
       UPCGDAT(IGRID)%IWC=>IWC
+      UPCGDAT(IGRID)%HUPCG=>HUPCG
       UPCGDAT(IGRID)%DC=>DC
       UPCGDAT(IGRID)%PC=>PC
       UPCGDAT(IGRID)%QC=>QC
@@ -1679,7 +1796,7 @@ C---------RETURN
 C
 C-------ROUTINE TO UPDATE THE PRECONDITIONER
       SUBROUTINE SUPCGPCU(IOUT,NOPT,NTRD,NTRDV,NNZC,NIAC,NIAPC,NIWC,NPC,
-     2                    AC,APC,IAC,JAC,IUC,IWC,
+     2                    AC,APC,IAC,JAC,IUC,IWC,DRELAX,
      3                    GLSPOLY)
         USE UPCGMODULE, ONLY: TGLSPOLY
         IMPLICIT NONE
@@ -1700,6 +1817,7 @@ C     + + + DUMMY ARGUMENTS + + +
         INTEGER, DIMENSION(NNZC), INTENT(IN)     :: JAC
         INTEGER, DIMENSION(NIAC), INTENT(IN)     :: IUC
         INTEGER, DIMENSION(NIWC), INTENT(INOUT)  :: IWC
+        DOUBLEPRECISION, INTENT(IN)              :: DRELAX
         TYPE (TGLSPOLY), INTENT(INOUT)           :: GLSPOLY
 C     + + + LOCAL DEFINITIONS + + +
         INTEGER :: n
@@ -1723,7 +1841,7 @@ C           ILU0 AND MILU0
             LILU0: DO
               CALL SUPCGPCILU0(NPC,NNZC,NIAC,NIAPC,NIWC,
      2                         AC,APC,IAC,JAC,IUC,IWC,
-     3                         izero,delta)
+     3                         DRELAX,izero,delta)
               IF ( izero.NE.1 ) THEN
                 EXIT LILU0
               END IF
@@ -1817,7 +1935,7 @@ C---------RETURN
 
       SUBROUTINE SUPCGPCILU0(NPC,NNZC,NIAC,NIAPC,NIWC,
      2                       AC,APC,IAC,JAC,IUC,IWC,
-     3                       IZERO,DELTA)
+     3                       DRELAX,IZERO,DELTA)
         IMPLICIT NONE
 C     + + + DUMMY ARGUMENTS + + +
         INTEGER, INTENT(IN) :: NPC
@@ -1831,6 +1949,7 @@ C     + + + DUMMY ARGUMENTS + + +
         INTEGER, DIMENSION(NNZC), INTENT(IN)     :: JAC
         INTEGER, DIMENSION(NIAC), INTENT(IN)     :: IUC
         INTEGER, DIMENSION(NIWC), INTENT(INOUT)  :: IWC
+        DOUBLEPRECISION, INTENT(IN) :: DRELAX
         INTEGER, INTENT(INOUT) :: IZERO
         DOUBLEPRECISION, INTENT(IN) :: DELTA
 C     + + + LOCAL DEFINITIONS + + +
@@ -1885,7 +2004,7 @@ C     + + + CODE + + +
 C           DIAGONAL - CALCULATE INVERSE OF DIAGONAL FOR SOLUTION
           id0 = IAC(n)
           !tl  = APC(id0) - rs
-          tl  = ( DONE + DELTA ) * APC(id0) - rs
+          tl  = ( DONE + DELTA ) * APC(id0) - ( DRELAX * rs )
           IF ( tl.GT.DZERO ) THEN
             APC(id0) = DONE / tl
           ELSE

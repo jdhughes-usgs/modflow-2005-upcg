@@ -91,7 +91,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Lib>
-      <AdditionalDependencies>cudart.lib;cusparse.lib;cublas.lib;lib\cuda_kernels_x64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cudart.lib;cusparse.lib;cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>lib\upcgc_x64d.lib</OutputFile>
       <AdditionalLibraryDirectories>$(CUDA_PATH)/lib/$(Platform);../../common/lib;../../common/lib/$(Platform);../../../shared/lib/$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>glut32.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>

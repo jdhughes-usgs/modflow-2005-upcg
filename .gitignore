@@ -22,3 +22,7 @@ _UpgradeReport_Files
 /code/src/mf2005-GPU.0.f
 *.suo
 *.sdf
+/bin/modflow-2005-UPCGd_x64.exe
+*.ilk
+*.rc
+*.res

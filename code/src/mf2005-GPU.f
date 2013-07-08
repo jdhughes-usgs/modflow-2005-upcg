@@ -339,23 +339,25 @@ c            END IF
             ENDIF      
             IF (IUNIT(66).GT.0) THEN
                    CALL UPCG7PNT(IGRID)
-                   CALL UPCG7AP(HNEW,IBOUND,IACTCELL,CR,CC,CV,HCOF,RHS,
-     1               ICNVG,KKSTP,KKPER,MXITER,KKITER,
-     2               NCOL,NROW,NLAY,NODES,HNOFLO,IOUT,
-     3               NPC,NOPT,NTRD,NTRDV,ITER1C,NITERC,NNZC,NIAC,
-     4               NIAPC,NIWC,NPOL,NEIG,
-     5               HCLOSEUPCG,RCLOSEUPCG,
-     6               UPCGTOTT,UPCGFMAT,
-     7               UPCGPCUT,UPCGPCAT,UPCGDPT,UPCGMVT,
-     8               UPCGAXPYT,UPCGVVPT,UPCGMISCT,UPCGGPUTT,
-     9               IUPCGO,IUPCGI,
-     X               NODEC,BC,XC,AC,APC,IAC,JAC,IUC,IXMAP,IWC,
-     1               DC,ZC,PC,QC,ISCL,SCL,SCLI,GLSPOLY,
-     2               CU_HDL,CU_STAT,CU_DES,CU_JAC,CU_IAC,
-     3               CU_AC,CU_APC,CU_XC,
-     3               CU_DC,CU_ZC,CU_PC,CU_QC,
-     5               CU_SCL,CU_SCLI,CU_V,CU_V0,CU_V1,
-     6               PL_DC,PL_ZC)
+                   CALL UPCG7AP(NODES,HNEW,IBOUND,IACTCELL,
+     2               CR,CC,CV,HCOF,RHS,
+     3               ICNVG,KKSTP,KKPER,MXITER,KKITER,
+     4               NCOL,NROW,NLAY,HNOFLO,IOUT,
+     5               NPC,NOPT,NTRD,NTRDV,ITER1C,NITERC,NNZC,NIAC,
+     6               NIAPC,NIWC,NPOL,NEIG,
+     7               HCLOSEUPCG,RCLOSEUPCG,
+     8               ISSFLG(KKPER),RELAXUPCG,DAMPUPCG,DAMPUPCGT,
+     9               UPCGTOTT,UPCGFMAT,
+     X               UPCGPCUT,UPCGPCAT,UPCGDPT,UPCGMVT,
+     1               UPCGAXPYT,UPCGVVPT,UPCGMISCT,UPCGGPUTT,
+     2               IUPCGO,IUPCGI,
+     3               NODEC,BC,XC,AC,APC,IAC,JAC,IUC,IXMAP,IWC,HUPCG,
+     4               DC,ZC,PC,QC,ISCL,SCL,SCLI,GLSPOLY,
+     5               CU_HDL,CU_STAT,CU_DES,CU_JAC,CU_IAC,
+     6               CU_AC,CU_APC,CU_XC,
+     7               CU_DC,CU_ZC,CU_PC,CU_QC,
+     8               CU_SCL,CU_SCLI,CU_V,CU_V0,CU_V1,
+     9               PL_DC,PL_ZC)
             END IF
             IF(IERR.EQ.1) CALL USTOP(' ')
 C

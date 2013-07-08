@@ -41,7 +41,7 @@ The UPCG solver input file contains solver parameters, options, and variables. O
 \begin{verbatim}
 1.  Data:   MXITER ITER1 NPC NOPT [NDEGREE] [NLANSTEP] [NTRD] [NTRDV]
      Module: URWORD
-2.  Data:   HCLOSE RCLOSE
+2.  Data:   HCLOSE RCLOSE RELAX DAMP [DAMPT]
      Module: URWORD
 \end{verbatim}
 
@@ -78,6 +78,14 @@ The UPCG solver input file contains solver parameters, options, and variables. O
 
 \item \texttt{HCLOSE}---a real value that defines the head change criterion for convergence, in units of length. When the maximum absolute value of head change from all active model cells during an iteration is less than or equal to \texttt{HCLOSE}, and the criterion for \texttt{RCLOSE} is also satisfied (see below), iteration stops. \texttt{HCLOSE} must be greater than 0.0.
 \item \texttt{RCLOSE}---a real value that defines the residual criterion for convergence, in units of cubic length per time. The units for length and time are the same as established for all model data.  (See \texttt{LENUNI} and \texttt{ITMUNI} input variables in the Discretization File.)  When the maximum absolute value of the residual at all active model cells during an iteration is less than or equal to \texttt{RCLOSE}, and the criterion for \texttt{HCLOSE} is also satisfied (see above), iteration stops. \texttt{RCLOSE} must be greater than 0.0.
+\item \texttt{RELAX}---a real value that defines the relaxation parameter used with the zero-fill, MILU0 preconditioner (\texttt{NPC} = 3). Usually, \texttt{RELAX} = 1.0, but for some problesma value of 0.99, 0.98, or 0.97 will reduce the number of iterations required for convergence. \texttt{RELAX} is not used if the zero-fill, MILU0 preconditioner (\texttt{NPC} = 3) is not used.
+\item \texttt{DAMP}---a real value that defines the dampening factor. \texttt{|DAMP|} is typically set equal to1.0, which indicates no dampening. A \texttt{|DAMP|} value less than 1.0 and greater than 0.0 causes dampening.
+\begin{description}
+	\item $<$0 -- applies only to steady-state stress periods. The absolute value is used as the dampening factor.
+	\item $>$0 -- applies to both steady-state and transient stress periods.
+\end{description}
+\item \texttt{DAMPT}---a real value that defines the dampening factor for transient stress periods. \texttt{DAMPT} is only specified if \texttt{DAMP} is specified as a negative value. If \texttt{DAMPT} is not read, then a single dampening factor, \texttt{DAMP}, is used for both transient and steady-state stress periods.
+
 
 \end{description}
 
