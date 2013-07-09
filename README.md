@@ -28,11 +28,13 @@ o Version 1.0 12/12/2012:
 
 This version is the initial release. 
 
-o Version 1.1 07/06/2013:
+o Version 1.1 07/09/2013:
 
 Updated MODFLOW source code to version 1.10 and modified the Visual Studio solution and upcgc C++ project to link against version 5.0 of the 64-bit CUDA toolkit. 
 
 Modified matrix assembly in UPCG7AP subroutine (upcg7.f) to work with more general MODFLOW problems with wetting and drying, interior inactive cells, and constant head cells.
+
+Added relaxation for MILU0 preconditioner and steady-state and transient dampening to all preconditioners.
 
 
 DISCLAIMER and NOTICE

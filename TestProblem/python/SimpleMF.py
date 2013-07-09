@@ -190,7 +190,7 @@ def write_gmgfile(fn_path,mxiter,iter1,hclose,rclose,damp,iadamp,ioutgmg,ism,isc
     return 1
 
     
-def write_upcgfile(fn_path,mxiter,iter1c,npc,nopt,ndegree,nlanstep,ntrd,ntrdv,hclose,rclose):
+def write_upcgfile(fn_path,mxiter,iter1c,npc,nopt,ndegree,nlanstep,ntrd,ntrdv,hclose,rclose,relax=1.0,damp=1.0,dampt=1.0):
     # Open file for writing
     f_upcg = open(fn_path+'.upcg', 'w')
     f_upcg.write('%s\n' % '#')
@@ -205,7 +205,7 @@ def write_upcgfile(fn_path,mxiter,iter1c,npc,nopt,ndegree,nlanstep,ntrd,ntrdv,hc
     f_upcg.write('\n')
         
     f_upcg.write('#\n#--Data set 2\n')
-    f_upcg.write('%10f%10f\n' % (hclose,rclose))
+    f_upcg.write('%10f%10f%10f%10f%10f\n' % (hclose,rclose,relax,damp,dampt))
     f_upcg.close()
     return 1
 
