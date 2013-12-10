@@ -1,7 +1,7 @@
 modflow-2005-upcg
 =================
 
-MODFLOW-2005 version 1.8 with the UPCG solver
+MODFLOW-2005 version 1.10 with the UPCG solver
 
 The UPCG solver includes support for parallel solution of MODFLOW on 
 (1) multi-core CPUs using OpenMP and (2) general purpose graphical
