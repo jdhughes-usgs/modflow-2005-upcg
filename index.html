@@ -28,37 +28,44 @@
 
     <div class="container">
       <section id="main_content">
-        <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <h1>
+<a name="modflow-2005-upcg" class="anchor" href="#modflow-2005-upcg"><span class="octicon octicon-link"></span></a>modflow-2005-upcg</h1>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+<p>MODFLOW-2005 version 1.10 with the UPCG solver</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+<p>The UPCG solver includes support for parallel solution of MODFLOW on 
+(1) multi-core CPUs using OpenMP and (2) general purpose graphical
+processing units (GPGPUs) using the NVIDIA CUBLAS Library.</p>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<p>Documentation:</p>
 
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+<p>Hughes, J.D., and White, J.T., 2012, Use of general purpose graphics processing units with MODFLOW: Ground Water, doi: 10.1111/gwat.12004.</p>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<p>GENERAL USE:</p>
 
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<p>Source code for MODFLOW--2005 with the UPCG solver is available in the code\src subdirectory. A Microsoft Visual Studio solution and associated fortran, C++, and cu projects are available in the code subdirectory.</p>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<p>Development and compilation of CUDA and CUBLAS functions requires installation of the CUDA toolkit which includes the necessary CUDA drivers. NVIDIA also provides GPGPU code samples in the CUDA software development kit (SDK). Current versions of each of these are available free of charge from NVIDIA at <a href="http://www.nvidia.com/content/cuda/cuda-downloads.html">http://www.nvidia.com/content/cuda/cuda-downloads.html</a>. A 64-bit version of the MODFLOW-2005 executable with the UPCG solver and the linked OpenMP dynamic-link library (DLL) for the Windows 7 operating system and the Tesla C2050 GPGPU is available in the bin subdirectory and only requires installation of the CUDA drivers, which are also available as a stand-alone installation from NVIDIA, and a GPGPU with NVIDIA Compute Capability 2.0 or greater. This executable was linked against version 4.1.28 of the 64-bit CUDA toolkit.</p>
 
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+<p>Contact Joseph D. Hughes &lt; jdhughes (at) usgs [dot] gov &gt;</p>
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<p>Version History:</p>
 
-<h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<p>o Version 1.0 12/12/2012:</p>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+<p>This version is the initial release. </p>
+
+<p>o Version 1.1 07/09/2013:</p>
+
+<p>Updated MODFLOW source code to version 1.10 and modified the Visual Studio solution and upcgc C++ project to link against version 5.0 of the 64-bit CUDA toolkit. </p>
+
+<p>Modified matrix assembly in UPCG7AP subroutine (upcg7.f) to work with more general MODFLOW problems with wetting and drying, interior inactive cells, and constant head cells.</p>
+
+<p>Added relaxation for MILU0 preconditioner and steady-state and transient dampening to all preconditioners.</p>
+
+<p>DISCLAIMER and NOTICE</p>
+
+<p>Please refer to the USGS Software User Rights Notice (<a href="http://water.usgs.gov/software/help/notice/">http://water.usgs.gov/software/help/notice/</a>) for complete use, copyright, and distribution information. Although this software has been used by the U.S. Geological Survey (USGS), no warranty, expressed or implied, is made by the USGS or the U.S. Government as to the accuracy and functioning of the software program and related program material nor shall the fact of distribution constitute any such warranty, and no responsibility is assumed by the USGS in connection therewith.  Although the software has been tested, there could be undetected errors. Users are encouraged to report any errors to these authors.  Any use of trade, firm, or product names is for descriptive purposes only and does not imply endorsement by the U.S. Government.</p>
       </section>
     </div>
 
